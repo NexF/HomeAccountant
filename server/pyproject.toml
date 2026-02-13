@@ -1,0 +1,8 @@
+[project]
+name = "home-accountant-server"
+version = "0.1.0"
+description = "家庭记账后端服务 - 基于复式记账法的家庭财务管理"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

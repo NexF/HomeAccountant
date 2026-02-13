@@ -1,41 +1,47 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
-node_modules/
-
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
 # macOS
 .DS_Store
-*.pem
+
+# Client (Expo/React Native)
+client/node_modules/
+client/.expo/
+client/dist/
+client/web-build/
+client/expo-env.d.ts
+client/.kotlin/
+client/*.orig.*
+client/*.jks
+client/*.p8
+client/*.p12
+client/*.key
+client/*.mobileprovision
+client/.metro-health-check*
+client/npm-debug.*
+client/yarn-debug.*
+client/yarn-error.*
+client/*.tsbuildinfo
+client/ios/
+client/android/
+
+# Server (Python)
+server/__pycache__/
+server/**/__pycache__/
+**/__pycache__/
+*.py[cod]
+*.so
+server/.env
+server/data/*.db
+server/data/*.db-wal
+server/data/*.db-shm
+server/.venv/
+server/venv/
+*.egg-info/
+server/dist/
+server/build/
+server/.pytest_cache/
 
 # local env files
 .env*.local
+*.pem
 
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/ios
-/android
+# CodeBuddy
+.codebuddy/

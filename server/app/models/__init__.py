@@ -6,6 +6,8 @@ from app.models.asset import FixedAsset
 from app.models.loan import Loan
 from app.models.budget import Budget
 from app.models.sync import DataSource, BalanceSnapshot, ExternalTransaction
+from app.models.api_key import ApiKey
+from app.models.plugin import Plugin
 
 __all__ = [
     "User",
@@ -20,4 +22,6 @@ __all__ = [
     "DataSource",
     "BalanceSnapshot",
     "ExternalTransaction",
+    "ApiKey",
+    "Plugin",
 ]

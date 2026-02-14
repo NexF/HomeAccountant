@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas.entry import (
     EntryCreateRequest,
     EntryUpdateRequest,
+    EntryConvertRequest,
     EntryDetailResponse,
     EntryListResponse,
     EntryResponse,
@@ -25,9 +26,11 @@ from app.services.entry_service import (
     get_entries_paginated,
     update_entry,
     delete_entry,
+    convert_entry_type,
     EntryError,
 )
 from app.services.book_service import user_has_book_access
+from app.utils.api_key_auth import get_current_user_flexible
 from app.utils.deps import get_current_user
 
 router = APIRouter(tags=["分录"])
@@ -75,6 +78,7 @@ def _to_detail(entry, asset_id: str | None = None) -> EntryDetailResponse:
                 description=l.description,
                 account_name=l.account.name if l.account else None,
                 account_code=l.account.code if l.account else None,
+                account_type=l.account.type if l.account else None,
             )
         )
     return EntryDetailResponse(
@@ -216,7 +220,7 @@ async def list_entries(
     start_date: date | None = None,
     end_date: date | None = None,
     account_id: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
     """分录列表（分页，支持按日期/类型/科目筛选）"""
@@ -245,7 +249,7 @@ async def list_entries(
 )
 async def get_detail(
     entry_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
     """获取分录详情（含借贷明细）"""
@@ -267,19 +271,39 @@ async def edit_entry(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """编辑分录元数据（日期、描述、备注）"""
+    """编辑分录（支持修改科目、金额等全部业务字段）"""
     entry = await get_entry_detail(db, entry_id)
     if not entry:
         raise HTTPException(status_code=404, detail="分录不存在")
     await _check_book(current_user.id, entry.book_id, db)
 
-    updated = await update_entry(
-        db, entry,
-        entry_date=body.entry_date,
-        description=body.description,
-        note=body.note,
-    )
+    try:
+        updated = await update_entry(db, entry, body)
+    except EntryError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+
     detail = await get_entry_detail(db, updated.id)
+    return _to_detail(detail)
+
+
+@router.post(
+    "/entries/{entry_id}/convert",
+    response_model=EntryDetailResponse,
+    summary="转换分录类型",
+)
+async def convert_entry(
+    entry_id: str,
+    body: EntryConvertRequest,
+    current_user: User = Depends(get_current_user_flexible),
+    db: AsyncSession = Depends(get_db),
+):
+    """转换分录类型（如费用→资产购置）"""
+    try:
+        entry = await convert_entry_type(db, entry_id, current_user.id, body)
+    except EntryError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+
+    detail = await get_entry_detail(db, entry.id)
     return _to_detail(detail)
 
 
@@ -290,7 +314,7 @@ async def edit_entry(
 )
 async def remove_entry(
     entry_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
     """删除分录（级联删除借贷明细）"""

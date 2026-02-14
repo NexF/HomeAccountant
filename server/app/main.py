@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import init_db
-from app.routers import auth, books, accounts, entries, reports, sync, assets, loans, budgets
+from app.routers import auth, books, accounts, entries, reports, sync, assets, loans, budgets, api_keys, plugins
 
 # 导入所有 model 使 SQLAlchemy 注册表结构
 import app.models  # noqa: F401
@@ -57,6 +57,8 @@ app.include_router(sync.router)
 app.include_router(assets.router)
 app.include_router(loans.router)
 app.include_router(budgets.router)
+app.include_router(api_keys.router)
+app.include_router(plugins.router)
 
 
 @app.get("/health", tags=["系统"])

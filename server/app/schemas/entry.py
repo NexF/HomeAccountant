@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -70,11 +71,37 @@ class EntryCreateRequest(BaseModel):
     # --- 手动模式 ---
     lines: list[JournalLineCreate] | None = None
 
+    # --- v0.2.0 外部去重 ---
+    external_id: str | None = Field(None, max_length=128, description="外部唯一标识，用于去重")
+
 
 class EntryUpdateRequest(BaseModel):
+    """分录完整编辑请求 — 除 entry_type 外，所有业务字段均可修改"""
+
+    # 元数据
     entry_date: date | None = None
     description: str | None = Field(None, max_length=500)
     note: str | None = None
+
+    # 金额
+    amount: Decimal | None = Field(None, gt=0)
+
+    # 科目 ID
+    category_account_id: str | None = None
+    payment_account_id: str | None = None
+    asset_account_id: str | None = None
+    liability_account_id: str | None = None
+    from_account_id: str | None = None
+    to_account_id: str | None = None
+    extra_liability_account_id: str | None = None
+    extra_liability_amount: Decimal | None = Field(None, ge=0)
+
+    # repay 专用
+    principal: Decimal | None = Field(None, ge=0)
+    interest: Decimal | None = Field(None, ge=0)
+
+    # manual 专用
+    lines: list[JournalLineCreate] | None = None
 
 
 class JournalLineResponse(BaseModel):
@@ -85,9 +112,10 @@ class JournalLineResponse(BaseModel):
     credit_amount: Decimal
     description: str | None
 
-    # 附带科目名称方便前端展示
+    # 附带科目信息方便前端展示和反向推导
     account_name: str | None = None
     account_code: str | None = None
+    account_type: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -119,3 +147,10 @@ class EntryListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class EntryConvertRequest(BaseModel):
+    """分录类型转换请求"""
+    target_type: Literal["expense", "income", "transfer", "asset_purchase", "borrow", "repay"]
+    category_account_id: str | None = None  # 新类型需要的分类科目
+    payment_account_id: str | None = None   # 新类型需要的支付科目

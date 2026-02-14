@@ -58,6 +58,20 @@ export type EntryUpdateParams = {
   entry_date?: string;
   description?: string;
   note?: string;
+
+  // 业务字段（v0.1.1 完整编辑）
+  amount?: number;
+  category_account_id?: string;
+  payment_account_id?: string;
+  asset_account_id?: string;
+  liability_account_id?: string;
+  from_account_id?: string;
+  to_account_id?: string;
+  extra_liability_account_id?: string;
+  extra_liability_amount?: number;
+  principal?: number;
+  interest?: number;
+  lines?: JournalLineCreate[];
 };
 
 export type JournalLineResponse = {
@@ -69,6 +83,7 @@ export type JournalLineResponse = {
   description: string | null;
   account_name: string | null;
   account_code: string | null;
+  account_type: string | null;
 };
 
 export type EntryResponse = {
@@ -107,6 +122,20 @@ export type ListEntriesParams = {
   account_id?: string;
 };
 
+export type EntryConvertParams = {
+  target_type: EntryType;
+  category_account_id?: string;
+  payment_account_id?: string;
+};
+
+/** 前端允许的转换路径，与后端 ALLOWED_CONVERSIONS 保持一致 */
+export const ALLOWED_CONVERSIONS: Partial<Record<EntryType, EntryType[]>> = {
+  expense: ['asset_purchase', 'transfer'],
+  asset_purchase: ['expense'],
+  income: ['repay'],
+  transfer: ['expense', 'income'],
+};
+
 export const entryService = {
   createEntry: (bookId: string, params: EntryCreateParams) =>
     api.post<EntryDetailResponse>(`/books/${bookId}/entries`, params),
@@ -122,4 +151,7 @@ export const entryService = {
 
   deleteEntry: (entryId: string) =>
     api.delete(`/entries/${entryId}`),
+
+  convertEntryType: (entryId: string, params: EntryConvertParams) =>
+    api.post<EntryDetailResponse>(`/entries/${entryId}/convert`, params),
 };

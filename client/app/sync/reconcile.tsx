@@ -21,7 +21,7 @@ import {
   syncService,
   type PendingReconcileItem,
 } from '@/services/syncService';
-import ReconcileCard from '@/components/sync/ReconcileCard';
+import ReconcileCard from '@/features/sync/ReconcileCard';
 
 export default function ReconcileScreen() {
   const colorScheme = useColorScheme() ?? 'light';

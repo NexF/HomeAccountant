@@ -5,7 +5,6 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
-  useWindowDimensions,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
@@ -16,6 +15,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { useLoanStore } from '@/stores/loanStore';
 import type { LoanResponse } from '@/services/loanService';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const STATUS_TABS = [
   { key: null, label: '全部' },
@@ -121,8 +121,7 @@ export default function LoanListScreen() {
   const currentBook = useBookStore((s) => s.currentBook);
   const { loans, summary, isLoading, filterStatus, fetchLoans, fetchSummary, setFilterStatus } =
     useLoanStore();
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= 768;
+  const { isDesktop } = useBreakpoint();
 
   useFocusEffect(
     useCallback(() => {

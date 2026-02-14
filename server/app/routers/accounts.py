@@ -18,6 +18,7 @@ from app.services.account_service import (
     deactivate_account,
 )
 from app.services.book_service import user_has_book_access
+from app.utils.api_key_auth import get_current_user_flexible
 from app.utils.deps import get_current_user
 
 router = APIRouter(tags=["科目"])
@@ -35,7 +36,7 @@ async def _check_book_access(user_id: str, book_id: str, db: AsyncSession):
 )
 async def get_book_accounts(
     book_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
     """获取指定账本下所有科目，按 type 分组返回树形结构"""

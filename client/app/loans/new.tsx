@@ -6,7 +6,6 @@ import {
   Alert,
   Platform,
   TextInput,
-  useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -16,9 +15,10 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { loanService } from '@/services/loanService';
-import AccountPicker from '@/components/entry/AccountPicker';
+import AccountPicker from '@/features/entry/AccountPicker';
 import type { AccountTreeNode } from '@/services/accountService';
 import type { AccountType } from '@/stores/accountStore';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 function todayStr() {
   const d = new Date();
@@ -62,8 +62,7 @@ export default function NewLoanScreen() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const currentBook = useBookStore((s) => s.currentBook);
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= 768;
+  const { isDesktop } = useBreakpoint();
 
   const [name, setName] = useState('');
   const [principal, setPrincipal] = useState('');

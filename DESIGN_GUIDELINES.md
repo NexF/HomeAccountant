@@ -152,10 +152,62 @@ function LoansPane() {
 
 **注意：** 各页面 `ScrollView` 的 `contentContainerStyle` 需设置 `paddingBottom: 80` 以防内容被底部 Tab Bar 遮挡。
 
-## 8. 默认科目
+## 8. 桌面端 Tab 切换时重置面板状态
+
+桌面端采用左右分栏布局的页面，在用户通过左侧导航栏切换 Tab 后再切回时，**右侧面板必须重置为默认空状态**，不得保留上次浏览的子面板/详情。
+
+**原因：** Expo Router 的 Tab 页面在切换后不会被卸载，组件内的 `useState` 状态会被保留。如果不主动重置，用户从"我的→固定资产"切换到"总览"再切回"我的"时，右侧面板仍停留在"固定资产"，而非初始的空状态。
+
+**实现方式：** 在 `useFocusEffect` 中重置右侧面板的选中状态：
+
+```typescript
+// profile.tsx — 重置详情面板
+useFocusEffect(
+  useCallback(() => {
+    const pane = consumePendingPane(); // 消费来自其他 tab 的跳转指令
+    if (isDesktop) {
+      setActiveDetail(pane ? (pane as DetailPane) : 'none');
+    }
+  }, [consumePendingPane, isDesktop])
+);
+
+// ledger.tsx — 重置选中分录
+useFocusEffect(
+  useCallback(() => {
+    setSelectedEntryId(null);
+    doFetch();
+  }, [doFetch])
+);
+```
+
+**规则：**
+
+- 如果有 `pendingPane`（来自其他 Tab 的定向跳转，如 Dashboard 点击"预算"），则打开对应面板
+- 如果没有 `pendingPane`（用户直接点导航栏切换），则重置为默认空状态
+- 所有带桌面端分栏布局的页面均需遵守此规范
+
+**已应用此规范的页面：** `profile.tsx`、`ledger.tsx`
+
+## 9. 默认科目
 
 | 场景 | 默认科目 | 科目代码 | 说明 |
 |------|---------|---------|------|
 | 还款利息费用科目 | 利息支出 | `5013` | 贷款详情页记录还款、记账页 repay 类型，自动从 expense 科目树中查找 code 为 `5013` 的科目作为默认值 |
 
 默认科目在前端硬编码设置，不在数据库层添加字段。用户仍可手动切换为其他科目。
+
+## 10. Modal 弹窗尺寸规范
+
+所有通过 `<Modal>` 弹出的对话框（创建、确认删除、编辑等）统一遵循以下尺寸：
+
+| 属性 | 移动端（< 768px） | 桌面端（≥ 768px） | 说明 |
+|------|-------------------|-------------------|------|
+| 宽度 | 屏幕宽度 × 85%（`width: '85%'`） | 固定 `420px` | 移动端自适应，桌面端固定宽度 |
+| 最大宽度 | `420px` | — | 防止移动端大屏设备过宽 |
+| 圆角 | `14px` | `14px` | `borderRadius: 14` |
+| 内边距 | `24px` | `24px` | `padding: 24` |
+| 标题字号 | `17px` | `17px` | `fontWeight: '600'`, `textAlign: 'center'` |
+
+**实现方式：** 在 StyleSheet 中使用固定值 `width: '85%'` + `maxWidth: 420` 即可同时覆盖移动端和桌面端，无需动态判断。
+
+**已应用此规范的弹窗：** API Key 创建/成功/删除、插件删除、预算编辑、账本页删除确认。

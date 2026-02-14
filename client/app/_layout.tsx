@@ -138,6 +138,9 @@ function RootLayoutNav() {
             <Stack.Screen name="loans/[id]" options={{ headerShown: false, title: '贷款详情' }} />
             <Stack.Screen name="loans/new" options={{ headerShown: false, title: '新建贷款' }} />
             <Stack.Screen name="settings/budget" options={{ headerShown: false, title: '预算设置' }} />
+            <Stack.Screen name="settings/api-keys" options={{ headerShown: false, title: 'API Key 管理' }} />
+            <Stack.Screen name="settings/plugins" options={{ headerShown: false, title: '插件管理' }} />
+            <Stack.Screen name="settings/mcp" options={{ headerShown: false, title: 'MCP 服务' }} />
             <Stack.Screen name="profile/edit" options={{ headerShown: false, title: '编辑个人信息' }} />
             <Stack.Screen name="profile/settings" options={{ headerShown: false, title: '设置' }} />
           </Stack>

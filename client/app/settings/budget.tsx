@@ -7,19 +7,19 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  useWindowDimensions,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { budgetService, type BudgetResponse } from '@/services/budgetService';
-import AccountPicker from '@/components/entry/AccountPicker';
+import AccountPicker from '@/features/entry/AccountPicker';
 import type { AccountTreeNode } from '@/services/accountService';
 import type { AccountType } from '@/stores/accountStore';
-import BudgetCard from '@/components/budget/BudgetCard';
+import BudgetCard from '@/features/budget/BudgetCard';
 
 const STATUS_COLORS: Record<string, string> = {
   normal: Colors.asset,
@@ -33,8 +33,7 @@ export default function BudgetSettingsScreen() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const currentBook = useBookStore((s) => s.currentBook);
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= 768;
+  const { isDesktop } = useBreakpoint();
 
   const [loading, setLoading] = useState(true);
   const [budgets, setBudgets] = useState<BudgetResponse[]>([]);
@@ -439,7 +438,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: { width: 320, borderRadius: 14, padding: 24 },
+  modalContent: { width: '85%', maxWidth: 420, borderRadius: 14, padding: 24 },
   modalTitle: { fontSize: 17, fontWeight: '600', marginBottom: 16, textAlign: 'center' },
   modalField: {
     flexDirection: 'row',

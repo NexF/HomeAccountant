@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.book import CreateBookRequest, BookResponse
 from app.services.book_service import create_book, get_user_books
+from app.utils.api_key_auth import get_current_user_flexible
 from app.utils.deps import get_current_user
 
 router = APIRouter(prefix="/books", tags=["账本"])
@@ -23,7 +24,7 @@ async def create(
 
 @router.get("", response_model=list[BookResponse], summary="获取账本列表")
 async def list_books(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
     """获取当前用户拥有或参与的所有账本"""

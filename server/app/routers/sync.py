@@ -25,6 +25,7 @@ from app.services.reconciliation_service import (
 )
 from app.services.book_service import user_has_book_access
 from app.services.entry_service import get_entry_detail
+from app.utils.api_key_auth import get_current_user_flexible
 from app.utils.deps import get_current_user
 
 router = APIRouter(tags=["对账同步"])
@@ -54,7 +55,7 @@ async def _check_entry_book(user_id: str, entry_id: str, db: AsyncSession) -> st
 async def submit_snapshot(
     account_id: str,
     body: SnapshotCreateRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
     """用户手动输入外部余额，系统计算差异并可能生成调节分录"""

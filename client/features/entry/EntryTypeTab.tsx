@@ -25,9 +25,10 @@ export const ENTRY_TYPES: EntryTypeConfig[] = [
 type Props = {
   activeType: EntryType;
   onTypeChange: (type: EntryType) => void;
+  disabled?: boolean;
 };
 
-export default function EntryTypeTab({ activeType, onTypeChange }: Props) {
+export default function EntryTypeTab({ activeType, onTypeChange, disabled }: Props) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
@@ -43,22 +44,24 @@ export default function EntryTypeTab({ activeType, onTypeChange }: Props) {
         return (
           <Pressable
             key={t.key}
+            disabled={disabled}
             style={[
               styles.tab,
               active && { backgroundColor: t.color + '18', borderColor: t.color },
+              disabled && !active && styles.tabLocked,
             ]}
-            onPress={() => onTypeChange(t.key)}
+            onPress={() => !disabled && onTypeChange(t.key)}
           >
             <FontAwesome
               name={t.icon}
               size={14}
-              color={active ? t.color : colors.textSecondary}
+              color={active ? t.color : disabled ? colors.textSecondary + '60' : colors.textSecondary}
               style={styles.icon}
             />
             <Text
               style={[
                 styles.label,
-                { color: active ? t.color : colors.textSecondary },
+                { color: active ? t.color : disabled ? colors.textSecondary + '60' : colors.textSecondary },
                 active && styles.labelActive,
               ]}
             >
@@ -98,5 +101,8 @@ const styles = StyleSheet.create({
   },
   labelActive: {
     fontWeight: '600',
+  },
+  tabLocked: {
+    opacity: 0.4,
   },
 });

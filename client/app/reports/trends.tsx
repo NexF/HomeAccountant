@@ -18,9 +18,9 @@ import {
   type NetWorthTrendPoint,
   type BreakdownItem,
 } from '@/services/reportService';
-import LineChart from '@/components/charts/LineChart';
-import PieChart from '@/components/charts/PieChart';
-import BarChart from '@/components/charts/BarChart';
+import LineChart from '@/features/chart/LineChart';
+import PieChart from '@/features/chart/PieChart';
+import BarChart from '@/features/chart/BarChart';
 
 function getMonthRange(): { start: string; end: string } {
   const now = new Date();

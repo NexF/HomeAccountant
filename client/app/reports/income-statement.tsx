@@ -13,8 +13,8 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { reportService, type IncomeStatementResponse } from '@/services/reportService';
-import IncomeStatementTable from '@/components/reports/IncomeStatementTable';
-import DatePicker from '@/components/reports/DatePicker';
+import IncomeStatementTable from '@/features/report/IncomeStatementTable';
+import DatePicker from '@/features/report/DatePicker';
 
 function getMonthRange(): { start: string; end: string } {
   const now = new Date();

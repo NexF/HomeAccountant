@@ -13,8 +13,8 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { reportService, type BalanceSheetResponse } from '@/services/reportService';
-import BalanceSheetTable from '@/components/reports/BalanceSheetTable';
-import DatePicker from '@/components/reports/DatePicker';
+import BalanceSheetTable from '@/features/report/BalanceSheetTable';
+import DatePicker from '@/features/report/DatePicker';
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);

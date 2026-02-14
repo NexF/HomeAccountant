@@ -48,6 +48,9 @@ class JournalEntry(Base):
         SAEnum("manual", "sync", "reconciliation", name="entry_source"),
         default="manual",
     )
+    external_id: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, comment="外部唯一标识，用于幂等去重"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

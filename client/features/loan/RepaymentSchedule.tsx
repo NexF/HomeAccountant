@@ -53,7 +53,7 @@ export default function RepaymentSchedule({ schedule }: Props) {
               <Text style={[styles.cell, styles.cellAmount, { color: Colors.primary }]}>¥{item.principal.toFixed(2)}</Text>
               <Text style={[styles.cell, styles.cellAmount, { color: Colors.asset }]}>¥{item.interest.toFixed(2)}</Text>
               <Text style={[styles.cell, styles.cellAmount, { color: colors.text }]}>¥{item.remaining.toFixed(2)}</Text>
-              <View style={[styles.cell, styles.cellStatus]}>
+              <View style={styles.cellStatus}>
                 <View
                   style={[
                     styles.statusBadge,

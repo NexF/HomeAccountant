@@ -519,3 +519,281 @@ class TestEntryCRUD:
             headers=auth_headers,
         )
         assert resp.status_code == 403
+
+
+# ═══════════════════════════════════════════
+# v0.1.1 — 分录完整编辑
+# ═══════════════════════════════════════════
+
+
+class TestEntryFullEdit:
+    """v0.1.1 分录完整编辑测试：科目、金额、所有业务字段可修改，ID 不变"""
+
+    @pytest.mark.asyncio
+    async def test_edit_expense_account_and_amount(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """编辑费用分录：改科目+金额，旧 lines 删除，新 lines 生成"""
+        food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        transport_id = await _get_account_id(client, test_book.id, "5002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+
+        # 创建原始分录
+        create_resp = await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "expense",
+                "entry_date": "2025-06-15",
+                "amount": 50,
+                "category_account_id": food_id,
+                "payment_account_id": cash_id,
+                "description": "午餐",
+            },
+            headers=auth_headers,
+        )
+        assert create_resp.status_code == 201
+        entry_id = create_resp.json()["id"]
+        created_at = create_resp.json()["created_at"]
+
+        # 编辑：改科目和金额
+        resp = await client.put(
+            f"/entries/{entry_id}",
+            json={
+                "amount": 100,
+                "category_account_id": transport_id,
+                "payment_account_id": bank_id,
+                "description": "打车",
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+
+        # ID 不变
+        assert data["id"] == entry_id
+        # created_at 不变
+        assert data["created_at"] == created_at
+        # 描述已更新
+        assert data["description"] == "打车"
+        # 借贷平衡
+        assert data["is_balanced"] is True
+        # lines 已重建
+        assert len(data["lines"]) == 2
+        total_debit = sum(float(l["debit_amount"]) for l in data["lines"])
+        total_credit = sum(float(l["credit_amount"]) for l in data["lines"])
+        assert total_debit == pytest.approx(100)
+        assert total_credit == pytest.approx(100)
+
+        # 验证科目已更换
+        account_ids = {l["account_id"] for l in data["lines"]}
+        assert transport_id in account_ids
+        assert bank_id in account_ids
+
+    @pytest.mark.asyncio
+    async def test_edit_income_entry(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """编辑收入分录"""
+        salary_id = await _get_account_id(client, test_book.id, "4001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+
+        create_resp = await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "income",
+                "entry_date": "2025-06-15",
+                "amount": 5000,
+                "category_account_id": salary_id,
+                "payment_account_id": cash_id,
+            },
+            headers=auth_headers,
+        )
+        entry_id = create_resp.json()["id"]
+
+        # 编辑：改收款账户和金额
+        resp = await client.put(
+            f"/entries/{entry_id}",
+            json={
+                "amount": 8000,
+                "category_account_id": salary_id,
+                "payment_account_id": bank_id,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == entry_id
+        total_debit = sum(float(l["debit_amount"]) for l in data["lines"])
+        assert total_debit == pytest.approx(8000)
+
+    @pytest.mark.asyncio
+    async def test_edit_transfer_entry(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """编辑转账分录"""
+        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+
+        create_resp = await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "transfer",
+                "entry_date": "2025-06-15",
+                "amount": 1000,
+                "from_account_id": cash_id,
+                "to_account_id": bank_id,
+            },
+            headers=auth_headers,
+        )
+        entry_id = create_resp.json()["id"]
+
+        # 编辑：改金额和方向
+        resp = await client.put(
+            f"/entries/{entry_id}",
+            json={
+                "amount": 2000,
+                "from_account_id": bank_id,
+                "to_account_id": cash_id,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == entry_id
+        total_debit = sum(float(l["debit_amount"]) for l in data["lines"])
+        assert total_debit == pytest.approx(2000)
+
+    @pytest.mark.asyncio
+    async def test_edit_only_metadata_lines_unchanged(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """仅更新元数据（兼容旧行为），lines 不变"""
+        food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+
+        create_resp = await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "expense",
+                "entry_date": "2025-06-15",
+                "amount": 30,
+                "category_account_id": food_id,
+                "payment_account_id": cash_id,
+            },
+            headers=auth_headers,
+        )
+        entry_id = create_resp.json()["id"]
+        original_lines = create_resp.json()["lines"]
+
+        resp = await client.put(
+            f"/entries/{entry_id}",
+            json={"description": "更新摘要", "note": "加个备注"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["description"] == "更新摘要"
+        assert data["note"] == "加个备注"
+        # lines ID 不变（未重建）
+        updated_line_ids = {l["id"] for l in data["lines"]}
+        original_line_ids = {l["id"] for l in original_lines}
+        assert updated_line_ids == original_line_ids
+
+    @pytest.mark.asyncio
+    async def test_edit_nonexistent_account_404(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """传入不存在的科目 ID → 404"""
+        food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+
+        create_resp = await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "expense",
+                "entry_date": "2025-06-15",
+                "amount": 20,
+                "category_account_id": food_id,
+                "payment_account_id": cash_id,
+            },
+            headers=auth_headers,
+        )
+        entry_id = create_resp.json()["id"]
+
+        resp = await client.put(
+            f"/entries/{entry_id}",
+            json={
+                "amount": 30,
+                "category_account_id": "nonexistent-id",
+                "payment_account_id": cash_id,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_edit_id_and_created_at_preserved(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """编辑后分录 ID 和 created_at 不变，updated_at 更新"""
+        food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+
+        create_resp = await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "expense",
+                "entry_date": "2025-06-15",
+                "amount": 10,
+                "category_account_id": food_id,
+                "payment_account_id": cash_id,
+            },
+            headers=auth_headers,
+        )
+        original = create_resp.json()
+
+        resp = await client.put(
+            f"/entries/{original['id']}",
+            json={
+                "amount": 99,
+                "category_account_id": food_id,
+                "payment_account_id": cash_id,
+                "entry_date": "2025-07-01",
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == original["id"]
+        assert data["created_at"] == original["created_at"]
+        assert data["entry_date"] == "2025-07-01"
+
+    @pytest.mark.asyncio
+    async def test_detail_response_includes_account_type(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """分录详情 API 返回 account_type 字段"""
+        food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+
+        create_resp = await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "expense",
+                "entry_date": "2025-06-15",
+                "amount": 15,
+                "category_account_id": food_id,
+                "payment_account_id": cash_id,
+            },
+            headers=auth_headers,
+        )
+        entry_id = create_resp.json()["id"]
+
+        resp = await client.get(f"/entries/{entry_id}", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        for line in data["lines"]:
+            assert "account_type" in line
+            assert line["account_type"] in ("asset", "liability", "equity", "income", "expense")

@@ -21,6 +21,7 @@ from app.services.report_service import (
     get_expense_breakdown,
     get_asset_allocation,
 )
+from app.utils.api_key_auth import get_current_user_flexible
 from app.utils.deps import get_current_user
 
 router = APIRouter(tags=["报表"])
@@ -39,7 +40,7 @@ async def _check_book(user_id: str, book_id: str, db: AsyncSession):
 async def balance_sheet(
     book_id: str,
     as_of_date: date = Query(default=None, alias="date", description="截止日期，默认今天"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
     """获取截至指定日期的资产负债表"""
@@ -58,7 +59,7 @@ async def income_statement(
     book_id: str,
     start: date = Query(..., description="开始日期"),
     end: date = Query(..., description="结束日期"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
     """获取指定时间段的损益表"""
@@ -76,7 +77,7 @@ async def income_statement(
 )
 async def dashboard(
     book_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
     """返回净资产、本月收入/费用/损益、较上月变化、近5条分录"""

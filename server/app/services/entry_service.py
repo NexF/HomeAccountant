@@ -3,7 +3,8 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select, func, and_
+from fastapi import HTTPException
+from sqlalchemy import select, func, and_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -59,6 +60,129 @@ def _make_line(
     )
 
 
+# ─────────────────── 分录行构造（共用） ───────────────────
+
+
+def _build_expense_lines(
+    amount: Decimal,
+    category_account_id: str,
+    payment_account_id: str,
+) -> list[JournalLine]:
+    """费用：借 费用科目，贷 资产/负债科目"""
+    return [
+        _make_line(category_account_id, debit=amount),
+        _make_line(payment_account_id, credit=amount),
+    ]
+
+
+def _build_income_lines(
+    amount: Decimal,
+    payment_account_id: str,
+    category_account_id: str,
+) -> list[JournalLine]:
+    """收入：借 资产科目，贷 收入科目"""
+    return [
+        _make_line(payment_account_id, debit=amount),
+        _make_line(category_account_id, credit=amount),
+    ]
+
+
+def _build_asset_purchase_lines(
+    amount: Decimal,
+    asset_account_id: str,
+    payment_account_id: str,
+    extra_liability_account_id: str | None = None,
+    extra_liability_amount: Decimal | None = None,
+) -> list[JournalLine]:
+    """购买资产：借 资产科目，贷 资产/负债科目（支持多贷方）"""
+    if extra_liability_account_id and extra_liability_amount:
+        payment_amount = amount - extra_liability_amount
+        if payment_amount < 0:
+            raise EntryError("额外负债金额不能超过总金额")
+        lines = [_make_line(asset_account_id, debit=amount)]
+        if payment_amount > 0:
+            lines.append(_make_line(payment_account_id, credit=payment_amount))
+        lines.append(_make_line(extra_liability_account_id, credit=extra_liability_amount))
+    else:
+        lines = [
+            _make_line(asset_account_id, debit=amount),
+            _make_line(payment_account_id, credit=amount),
+        ]
+    return lines
+
+
+def _build_borrow_lines(
+    amount: Decimal,
+    payment_account_id: str,
+    liability_account_id: str,
+) -> list[JournalLine]:
+    """借入/贷款：借 资产科目，贷 负债科目"""
+    return [
+        _make_line(payment_account_id, debit=amount),
+        _make_line(liability_account_id, credit=amount),
+    ]
+
+
+def _build_repay_lines(
+    principal: Decimal,
+    interest: Decimal,
+    liability_account_id: str,
+    payment_account_id: str,
+    category_account_id: str | None = None,
+) -> list[JournalLine]:
+    """还款：借 负债（本金）+ 利息费用，贷 资产科目"""
+    total_credit = principal + interest
+    lines = [
+        _make_line(liability_account_id, debit=principal, description="本金"),
+    ]
+    if interest > 0:
+        if category_account_id:
+            lines.append(
+                _make_line(category_account_id, debit=interest, description="利息")
+            )
+        else:
+            lines.append(
+                _make_line(liability_account_id, debit=interest, description="利息")
+            )
+            total_credit = principal + interest
+    lines.append(
+        _make_line(payment_account_id, credit=total_credit)
+    )
+    return lines
+
+
+def _build_transfer_lines(
+    amount: Decimal,
+    from_account_id: str,
+    to_account_id: str,
+) -> list[JournalLine]:
+    """账户互转：借 目标资产，贷 来源资产"""
+    return [
+        _make_line(to_account_id, debit=amount),
+        _make_line(from_account_id, credit=amount),
+    ]
+
+
+async def _build_manual_lines(
+    db: AsyncSession,
+    book_id: str,
+    lines_data: list[dict],
+) -> list[JournalLine]:
+    """手动分录：直接传入 lines"""
+    lines = []
+    for ld in lines_data:
+        await _get_account(db, ld["account_id"], book_id)
+        lines.append(
+            _make_line(
+                ld["account_id"],
+                debit=Decimal(str(ld.get("debit_amount", 0))),
+                credit=Decimal(str(ld.get("credit_amount", 0))),
+                description=ld.get("description"),
+            )
+        )
+    return lines
+
+
 # ─────────────────────── 6 种快捷记账 ───────────────────────
 
 async def create_expense(
@@ -84,10 +208,7 @@ async def create_expense(
         description=description,
         note=note,
     )
-    lines = [
-        _make_line(category_account_id, debit=amount),
-        _make_line(payment_account_id, credit=amount),
-    ]
+    lines = _build_expense_lines(amount, category_account_id, payment_account_id)
     _check_balance(lines)
     entry.lines = lines
     db.add(entry)
@@ -119,10 +240,7 @@ async def create_income(
         description=description,
         note=note,
     )
-    lines = [
-        _make_line(payment_account_id, debit=amount),
-        _make_line(category_account_id, credit=amount),
-    ]
+    lines = _build_income_lines(amount, payment_account_id, category_account_id)
     _check_balance(lines)
     entry.lines = lines
     db.add(entry)
@@ -170,6 +288,9 @@ async def create_asset_purchase(
     if is_fixed_asset and not asset_name:
         raise EntryError("固定资产科目必须填写资产名称")
 
+    if extra_liability_account_id and extra_liability_amount:
+        await _get_account(db, extra_liability_account_id, book_id)
+
     entry = JournalEntry(
         book_id=book_id,
         user_id=user_id,
@@ -179,22 +300,10 @@ async def create_asset_purchase(
         note=note,
     )
 
-    # 总借方 = amount
-    # 贷方 = payment_amount + extra_liability_amount
-    if extra_liability_account_id and extra_liability_amount:
-        await _get_account(db, extra_liability_account_id, book_id)
-        payment_amount = amount - extra_liability_amount
-        if payment_amount < 0:
-            raise EntryError("额外负债金额不能超过总金额")
-        lines = [_make_line(asset_account_id, debit=amount)]
-        if payment_amount > 0:
-            lines.append(_make_line(payment_account_id, credit=payment_amount))
-        lines.append(_make_line(extra_liability_account_id, credit=extra_liability_amount))
-    else:
-        lines = [
-            _make_line(asset_account_id, debit=amount),
-            _make_line(payment_account_id, credit=amount),
-        ]
+    lines = _build_asset_purchase_lines(
+        amount, asset_account_id, payment_account_id,
+        extra_liability_account_id, extra_liability_amount,
+    )
 
     _check_balance(lines)
     entry.lines = lines
@@ -271,10 +380,7 @@ async def create_borrow(
         description=description,
         note=note,
     )
-    lines = [
-        _make_line(payment_account_id, debit=amount),
-        _make_line(liability_account_id, credit=amount),
-    ]
+    lines = _build_borrow_lines(amount, payment_account_id, liability_account_id)
     _check_balance(lines)
     entry.lines = lines
     db.add(entry)
@@ -317,6 +423,8 @@ async def create_repayment(
     """还款：借 负债（本金）+ 利息费用，贷 资产科目"""
     await _get_account(db, liability_account_id, book_id)
     await _get_account(db, payment_account_id, book_id)
+    if category_account_id:
+        await _get_account(db, category_account_id, book_id)
 
     entry = JournalEntry(
         book_id=book_id,
@@ -327,27 +435,9 @@ async def create_repayment(
         note=note,
     )
 
-    total_credit = principal + interest
-    lines = [
-        _make_line(liability_account_id, debit=principal, description="本金"),
-    ]
-
-    if interest > 0:
-        # 利息费用科目：如果传了 category_account_id 就用，否则利息也记到负债上
-        if category_account_id:
-            await _get_account(db, category_account_id, book_id)
-            lines.append(
-                _make_line(category_account_id, debit=interest, description="利息")
-            )
-        else:
-            # 没有指定利息科目时，利息也作为借方
-            lines.append(
-                _make_line(liability_account_id, debit=interest, description="利息")
-            )
-            total_credit = principal + interest
-
-    lines.append(
-        _make_line(payment_account_id, credit=total_credit)
+    lines = _build_repay_lines(
+        principal, interest, liability_account_id,
+        payment_account_id, category_account_id,
     )
 
     _check_balance(lines)
@@ -381,10 +471,7 @@ async def create_transfer(
         description=description,
         note=note,
     )
-    lines = [
-        _make_line(to_account_id, debit=amount),
-        _make_line(from_account_id, credit=amount),
-    ]
+    lines = _build_transfer_lines(amount, from_account_id, to_account_id)
     _check_balance(lines)
     entry.lines = lines
     db.add(entry)
@@ -411,17 +498,7 @@ async def create_manual_entry(
         description=description,
         note=note,
     )
-    lines = []
-    for ld in lines_data:
-        await _get_account(db, ld["account_id"], book_id)
-        lines.append(
-            _make_line(
-                ld["account_id"],
-                debit=Decimal(str(ld.get("debit_amount", 0))),
-                credit=Decimal(str(ld.get("credit_amount", 0))),
-                description=ld.get("description"),
-            )
-        )
+    lines = await _build_manual_lines(db, book_id, lines_data)
     _check_balance(lines)
     entry.lines = lines
     db.add(entry)
@@ -495,20 +572,134 @@ async def get_entries_paginated(
     return entries, total
 
 
+def _has_business_fields(body) -> bool:
+    """判断更新请求中是否包含业务字段（需要重建 lines）"""
+    business_fields = [
+        "amount", "category_account_id", "payment_account_id",
+        "asset_account_id", "liability_account_id",
+        "from_account_id", "to_account_id",
+        "extra_liability_account_id", "extra_liability_amount",
+        "principal", "interest", "lines",
+    ]
+    for field in business_fields:
+        if getattr(body, field, None) is not None:
+            return True
+    return False
+
+
+async def _rebuild_lines(
+    db: AsyncSession,
+    entry: JournalEntry,
+    body,
+) -> list[JournalLine]:
+    """按 entry_type 重新构造 journal_lines"""
+    etype = entry.entry_type
+
+    if etype == "expense":
+        if not body.amount or not body.category_account_id or not body.payment_account_id:
+            raise EntryError("费用分录需要 amount, category_account_id, payment_account_id")
+        await _get_account(db, body.category_account_id, entry.book_id)
+        await _get_account(db, body.payment_account_id, entry.book_id)
+        return _build_expense_lines(body.amount, body.category_account_id, body.payment_account_id)
+
+    elif etype == "income":
+        if not body.amount or not body.category_account_id or not body.payment_account_id:
+            raise EntryError("收入分录需要 amount, category_account_id, payment_account_id")
+        await _get_account(db, body.payment_account_id, entry.book_id)
+        await _get_account(db, body.category_account_id, entry.book_id)
+        return _build_income_lines(body.amount, body.payment_account_id, body.category_account_id)
+
+    elif etype == "asset_purchase":
+        if not body.amount or not body.asset_account_id or not body.payment_account_id:
+            raise EntryError("购买资产需要 amount, asset_account_id, payment_account_id")
+        await _get_account(db, body.asset_account_id, entry.book_id)
+        await _get_account(db, body.payment_account_id, entry.book_id)
+        if body.extra_liability_account_id and body.extra_liability_amount:
+            await _get_account(db, body.extra_liability_account_id, entry.book_id)
+        return _build_asset_purchase_lines(
+            body.amount, body.asset_account_id, body.payment_account_id,
+            body.extra_liability_account_id, body.extra_liability_amount,
+        )
+
+    elif etype == "borrow":
+        if not body.amount or not body.payment_account_id or not body.liability_account_id:
+            raise EntryError("借入需要 amount, payment_account_id, liability_account_id")
+        await _get_account(db, body.payment_account_id, entry.book_id)
+        await _get_account(db, body.liability_account_id, entry.book_id)
+        return _build_borrow_lines(body.amount, body.payment_account_id, body.liability_account_id)
+
+    elif etype == "repay":
+        if body.principal is None or body.interest is None:
+            raise EntryError("还款需要 principal, interest")
+        if not body.liability_account_id or not body.payment_account_id:
+            raise EntryError("还款需要 liability_account_id, payment_account_id")
+        await _get_account(db, body.liability_account_id, entry.book_id)
+        await _get_account(db, body.payment_account_id, entry.book_id)
+        if body.category_account_id:
+            await _get_account(db, body.category_account_id, entry.book_id)
+        return _build_repay_lines(
+            body.principal, body.interest, body.liability_account_id,
+            body.payment_account_id, body.category_account_id,
+        )
+
+    elif etype == "transfer":
+        if not body.amount or not body.from_account_id or not body.to_account_id:
+            raise EntryError("转账需要 amount, from_account_id, to_account_id")
+        await _get_account(db, body.from_account_id, entry.book_id)
+        await _get_account(db, body.to_account_id, entry.book_id)
+        return _build_transfer_lines(body.amount, body.from_account_id, body.to_account_id)
+
+    elif etype == "manual":
+        if not body.lines or len(body.lines) < 2:
+            raise EntryError("手动分录至少需要 2 行")
+        lines_data = [l if isinstance(l, dict) else l.model_dump() for l in body.lines]
+        return await _build_manual_lines(db, entry.book_id, lines_data)
+
+    else:
+        raise EntryError(f"不支持的分录类型: {etype}")
+
+
 async def update_entry(
     db: AsyncSession,
     entry: JournalEntry,
-    entry_date: date | None = None,
-    description: str | None = None,
-    note: str | None = None,
+    body,
 ) -> JournalEntry:
-    """编辑分录（仅编辑元数据，不修改 lines）"""
-    if entry_date is not None:
-        entry.entry_date = entry_date
-    if description is not None:
-        entry.description = description
-    if note is not None:
-        entry.note = note
+    """
+    完整编辑分录：
+    1. 更新元数据（entry_date, description, note）
+    2. 如果提供了业务字段（amount, account_id 等），删除旧 lines 并重新生成
+    3. 校验借贷平衡
+    4. entry.id 和 created_at 不变
+    """
+    # Step 1: 更新元数据
+    if getattr(body, "entry_date", None) is not None:
+        entry.entry_date = body.entry_date
+    if getattr(body, "description", None) is not None:
+        entry.description = body.description
+    if getattr(body, "note", None) is not None:
+        entry.note = body.note
+
+    # Step 2: 判断是否需要重建 lines
+    if _has_business_fields(body):
+        # Step 2a: 删除旧的 journal_lines
+        await db.execute(
+            delete(JournalLine).where(JournalLine.entry_id == entry.id)
+        )
+        # 清除 ORM 缓存中的旧 lines
+        entry.lines.clear()
+
+        # Step 2b: 按 entry_type 重新生成 lines
+        new_lines = await _rebuild_lines(db, entry, body)
+
+        # Step 2c: 校验借贷平衡
+        _check_balance(new_lines)
+
+        # Step 2d: 关联新 lines
+        for line in new_lines:
+            line.entry_id = entry.id
+            db.add(line)
+        entry.lines = new_lines
+
     await db.flush()
     await db.refresh(entry)
     return entry
@@ -518,3 +709,140 @@ async def delete_entry(db: AsyncSession, entry: JournalEntry) -> None:
     """删除分录（级联删除 lines）"""
     await db.delete(entry)
     await db.flush()
+
+
+# ─────────────────────── 分录类型转换 ───────────────────────
+
+ALLOWED_CONVERSIONS: dict[str, set[str]] = {
+    "expense": {"asset_purchase", "transfer"},
+    "asset_purchase": {"expense"},
+    "income": {"repay"},
+    "transfer": {"expense", "income"},
+}
+
+
+def _extract_amount_from_lines(lines: list[JournalLine]) -> Decimal:
+    """从借贷行中提取主金额（取借方总额）"""
+    return sum(Decimal(str(l.debit_amount)) for l in lines)
+
+
+def _extract_account_ids_from_lines(
+    lines: list[JournalLine],
+) -> dict[str, str]:
+    """从借贷行中提取科目 ID 映射，返回 {debit_account_id, credit_account_id}"""
+    debit_ids = [l.account_id for l in lines if Decimal(str(l.debit_amount)) > 0]
+    credit_ids = [l.account_id for l in lines if Decimal(str(l.credit_amount)) > 0]
+    result = {}
+    if debit_ids:
+        result["debit_account_id"] = debit_ids[0]
+    if credit_ids:
+        result["credit_account_id"] = credit_ids[0]
+    return result
+
+
+async def convert_entry_type(
+    db: AsyncSession,
+    entry_id: str,
+    user_id: str,
+    body,
+) -> JournalEntry:
+    """转换分录类型。
+
+    1. 校验权限和转换路径合法性
+    2. 删除原借贷明细行
+    3. 根据新类型重建借贷明细行
+    4. 更新 entry_type
+    """
+    from app.services.book_service import user_has_book_access
+
+    # 1. 获取分录
+    entry = await get_entry_detail(db, entry_id)
+    if not entry:
+        raise EntryError("分录不存在", 404)
+
+    # 权限校验
+    if not await user_has_book_access(db, user_id, entry.book_id):
+        raise HTTPException(status_code=403, detail="无权访问该账本")
+
+    # 2. 校验转换路径
+    allowed = ALLOWED_CONVERSIONS.get(entry.entry_type, set())
+    if body.target_type not in allowed:
+        raise EntryError(
+            f"不支持从 {entry.entry_type} 转换为 {body.target_type}。"
+            f"允许的目标类型: {', '.join(allowed) if allowed else '无'}"
+        )
+
+    # 3. 从旧 lines 中提取金额和科目
+    amount = _extract_amount_from_lines(entry.lines)
+    old_accounts = _extract_account_ids_from_lines(entry.lines)
+
+    # 4. 删除原借贷明细行
+    await db.execute(
+        delete(JournalLine).where(JournalLine.entry_id == entry_id)
+    )
+    entry.lines.clear()
+
+    # 5. 确定新的科目 ID
+    category_id = body.category_account_id or old_accounts.get("debit_account_id")
+    payment_id = body.payment_account_id or old_accounts.get("credit_account_id")
+
+    # 6. 校验科目存在且可用
+    if category_id:
+        await _get_account(db, category_id, entry.book_id)
+    if payment_id:
+        await _get_account(db, payment_id, entry.book_id)
+
+    # 7. 根据新类型重建借贷明细
+    match body.target_type:
+        case "expense":
+            if not category_id or not payment_id:
+                raise EntryError("转换为费用需要 category_account_id 和 payment_account_id")
+            new_lines = _build_expense_lines(amount, category_id, payment_id)
+        case "income":
+            if not payment_id or not category_id:
+                raise EntryError("转换为收入需要 category_account_id 和 payment_account_id")
+            new_lines = _build_income_lines(amount, payment_id, category_id)
+        case "transfer":
+            # transfer 需要 from 和 to，使用 payment_id 作为 from，category_id 作为 to
+            from_id = body.payment_account_id or old_accounts.get("credit_account_id")
+            to_id = body.category_account_id or old_accounts.get("debit_account_id")
+            if not from_id or not to_id:
+                raise EntryError("转换为转账需要来源和目标科目")
+            new_lines = _build_transfer_lines(amount, from_id, to_id)
+        case "asset_purchase":
+            asset_id = body.category_account_id or old_accounts.get("debit_account_id")
+            pay_id = body.payment_account_id or old_accounts.get("credit_account_id")
+            if not asset_id or not pay_id:
+                raise EntryError("转换为资产购置需要 asset_account_id 和 payment_account_id")
+            new_lines = _build_asset_purchase_lines(amount, asset_id, pay_id)
+        case "borrow":
+            pay_id = body.category_account_id or old_accounts.get("debit_account_id")
+            liability_id = body.payment_account_id or old_accounts.get("credit_account_id")
+            if not pay_id or not liability_id:
+                raise EntryError("转换为借入需要 payment_account_id 和 liability_account_id")
+            new_lines = _build_borrow_lines(amount, pay_id, liability_id)
+        case "repay":
+            liability_id = body.category_account_id or old_accounts.get("debit_account_id")
+            pay_id = body.payment_account_id or old_accounts.get("credit_account_id")
+            if not liability_id or not pay_id:
+                raise EntryError("转换为还款需要 liability_account_id 和 payment_account_id")
+            # 还款默认全部作为本金，利息为 0
+            new_lines = _build_repay_lines(amount, Decimal("0"), liability_id, pay_id)
+        case _:
+            raise EntryError(f"不支持的目标类型: {body.target_type}")
+
+    # 8. 校验借贷平衡
+    _check_balance(new_lines)
+
+    # 9. 关联新 lines
+    for line in new_lines:
+        line.entry_id = entry.id
+        db.add(line)
+    entry.lines = new_lines
+
+    # 10. 更新 entry_type
+    entry.entry_type = body.target_type
+
+    await db.flush()
+    await db.refresh(entry)
+    return entry

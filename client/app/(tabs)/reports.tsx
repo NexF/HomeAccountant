@@ -21,12 +21,12 @@ import {
   type BreakdownItem,
   type NetWorthTrendPoint,
 } from '@/services/reportService';
-import BalanceSheetTable from '@/components/reports/BalanceSheetTable';
-import IncomeStatementTable from '@/components/reports/IncomeStatementTable';
-import DatePicker from '@/components/reports/DatePicker';
-import PieChart from '@/components/charts/PieChart';
-import LineChart from '@/components/charts/LineChart';
-import BarChart from '@/components/charts/BarChart';
+import BalanceSheetTable from '@/features/report/BalanceSheetTable';
+import IncomeStatementTable from '@/features/report/IncomeStatementTable';
+import DatePicker from '@/features/report/DatePicker';
+import PieChart from '@/features/chart/PieChart';
+import LineChart from '@/features/chart/LineChart';
+import BarChart from '@/features/chart/BarChart';
 
 type Tab = 'balance' | 'income' | 'trends';
 

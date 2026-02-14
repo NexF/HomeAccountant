@@ -20,8 +20,8 @@ import {
   type LoanResponse,
   type RepaymentScheduleItem,
 } from '@/services/loanService';
-import RepaymentSchedule from '@/components/loans/RepaymentSchedule';
-import AccountPicker from '@/components/entry/AccountPicker';
+import RepaymentSchedule from '@/features/loan/RepaymentSchedule';
+import AccountPicker from '@/features/entry/AccountPicker';
 import { accountService, type AccountTreeNode } from '@/services/accountService';
 import type { AccountType } from '@/stores/accountStore';
 

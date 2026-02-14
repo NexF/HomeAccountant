@@ -5,7 +5,6 @@ import {
   RefreshControl,
   ActivityIndicator,
   Pressable,
-  useWindowDimensions,
 } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -21,14 +20,15 @@ import {
   type BreakdownItem,
 } from '@/services/reportService';
 import { syncService } from '@/services/syncService';
-import NetWorthBadge from '@/components/reports/NetWorthBadge';
-import LineChart from '@/components/charts/LineChart';
-import PieChart from '@/components/charts/PieChart';
+import NetWorthBadge from '@/features/report/NetWorthBadge';
+import LineChart from '@/features/chart/LineChart';
+import PieChart from '@/features/chart/PieChart';
 
-import BudgetOverview from '@/components/budget/BudgetOverview';
-import LoanOverview from '@/components/loans/LoanOverview';
-import EntryCard from '@/components/entry/EntryCard';
+import BudgetOverview from '@/features/budget/BudgetOverview';
+import LoanOverview from '@/features/loan/LoanOverview';
+import EntryCard from '@/features/entry/EntryCard';
 import { useProfileNavStore } from '@/stores/profileNavStore';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 function fmt(n: number): string {
   const abs = Math.abs(n);
@@ -42,8 +42,7 @@ export default function DashboardScreen() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const { currentBook } = useBookStore();
-  const { width: screenWidth } = useWindowDimensions();
-  const isDesktop = screenWidth >= 768;
+  const { isDesktop, width: screenWidth } = useBreakpoint();
   const chartWidth = isDesktop
     ? 380 - 32 - 32
     : Math.min(screenWidth - 64, 500);

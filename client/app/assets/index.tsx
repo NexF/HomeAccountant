@@ -5,7 +5,6 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
-  useWindowDimensions,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
@@ -14,8 +13,9 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { useAssetStore } from '@/stores/assetStore';
-import AssetCard from '@/components/assets/AssetCard';
+import AssetCard from '@/features/asset/AssetCard';
 import type { AssetResponse } from '@/services/assetService';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const STATUS_TABS = [
   { key: null, label: '全部' },
@@ -30,8 +30,7 @@ export default function AssetListScreen() {
   const currentBook = useBookStore((s) => s.currentBook);
   const { assets, summary, isLoading, filterStatus, fetchAssets, fetchSummary, setFilterStatus } =
     useAssetStore();
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= 768;
+  const { isDesktop } = useBreakpoint();
 
   useEffect(() => {
     if (currentBook) {

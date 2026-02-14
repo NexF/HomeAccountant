@@ -20,8 +20,8 @@ import {
   type AssetResponse,
   type DepreciationRecord,
 } from '@/services/assetService';
-import DepreciationChart from '@/components/assets/DepreciationChart';
-import AccountPicker from '@/components/entry/AccountPicker';
+import DepreciationChart from '@/features/asset/DepreciationChart';
+import AccountPicker from '@/features/entry/AccountPicker';
 import type { AccountTreeNode } from '@/services/accountService';
 import type { AccountType } from '@/stores/accountStore';
 

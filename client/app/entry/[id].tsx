@@ -1,23 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   StyleSheet,
   ScrollView,
   Pressable,
   Alert,
   Platform,
-  TextInput,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import {
   entryService,
+  ALLOWED_CONVERSIONS,
   type EntryDetailResponse,
-  type JournalLineResponse,
+  type EntryType,
 } from '@/services/entryService';
+import { AccountPicker } from '@/features/entry';
+import { ENTRY_TYPES, type EntryTypeConfig } from '@/features/entry/EntryTypeTab';
+import { useBookStore } from '@/stores/bookStore';
 
 const TYPE_LABELS: Record<string, string> = {
   expense: '费用',
@@ -37,11 +42,29 @@ export default function EntryDetailScreen() {
 
   const [entry, setEntry] = useState<EntryDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [editDesc, setEditDesc] = useState('');
-  const [editNote, setEditNote] = useState('');
-  const [editDate, setEditDate] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  // 转换类型 Modal 状态
+  const [convertVisible, setConvertVisible] = useState(false);
+  const [convertTarget, setConvertTarget] = useState<EntryType | null>(null);
+  const [convertCategoryId, setConvertCategoryId] = useState<string | undefined>();
+  const [convertPaymentId, setConvertPaymentId] = useState<string | undefined>();
+  const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
+  const [paymentPickerVisible, setPaymentPickerVisible] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [categoryName, setCategoryName] = useState('');
+  const [paymentName, setPaymentName] = useState('');
+  const currentBook = useBookStore((s) => s.currentBook);
+
+  const showToast = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      setToastMsg(`${title}: ${message}`);
+      setTimeout(() => setToastMsg(''), 3000);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
 
   const fetchDetail = async () => {
     if (!id) return;
@@ -49,11 +72,8 @@ export default function EntryDetailScreen() {
       setLoading(true);
       const { data } = await entryService.getEntry(id);
       setEntry(data);
-      setEditDesc(data.description ?? '');
-      setEditNote(data.note ?? '');
-      setEditDate(data.entry_date);
     } catch {
-      Alert.alert('错误', '加载失败');
+      showToast('错误', '加载失败');
     } finally {
       setLoading(false);
     }
@@ -63,42 +83,68 @@ export default function EntryDetailScreen() {
     fetchDetail();
   }, [id]);
 
-  const handleSave = async () => {
-    if (!entry) return;
-    setSaving(true);
-    try {
-      const { data } = await entryService.updateEntry(entry.id, {
-        description: editDesc || undefined,
-        note: editNote || undefined,
-        entry_date: editDate || undefined,
-      });
-      setEntry(data);
-      setEditing(false);
-    } catch (e: any) {
-      Alert.alert('错误', e?.response?.data?.detail ?? '保存失败');
-    } finally {
-      setSaving(false);
-    }
-  };
+  // 编辑返回后自动刷新数据
+  useFocusEffect(
+    useCallback(() => {
+      fetchDetail();
+    }, [id])
+  );
 
   const handleDelete = () => {
     if (!entry) return;
-    Alert.alert('确认删除', '删除后无法恢复', [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '删除',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await entryService.deleteEntry(entry.id);
-            router.back();
-          } catch {
-            Alert.alert('错误', '删除失败');
-          }
-        },
-      },
-    ]);
+    setShowDeleteModal(true);
   };
+
+  const confirmDelete = async () => {
+    if (!entry) return;
+    try {
+      await entryService.deleteEntry(entry.id);
+      setShowDeleteModal(false);
+      router.back();
+    } catch {
+      setShowDeleteModal(false);
+      showToast('错误', '删除失败');
+    }
+  };
+
+  // 转换类型相关
+  const canConvert = !!ALLOWED_CONVERSIONS[entry?.entry_type as EntryType]?.length;
+  const allowedTargets = entry ? ALLOWED_CONVERSIONS[entry.entry_type as EntryType] ?? [] : [];
+
+  const getTargetConfig = (type: EntryType): EntryTypeConfig | undefined =>
+    ENTRY_TYPES.find((t) => t.key === type);
+
+  const openConvertModal = () => {
+    setConvertTarget(null);
+    setConvertCategoryId(undefined);
+    setConvertPaymentId(undefined);
+    setCategoryName('');
+    setPaymentName('');
+    setConvertVisible(true);
+  };
+
+  const handleConvert = async () => {
+    if (!entry || !convertTarget) return;
+    setConverting(true);
+    try {
+      const { data } = await entryService.convertEntryType(entry.id, {
+        target_type: convertTarget,
+        category_account_id: convertCategoryId,
+        payment_account_id: convertPaymentId,
+      });
+      setEntry(data);
+      setConvertVisible(false);
+      showToast('成功', `已转换为${TYPE_LABELS[convertTarget] ?? convertTarget}`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail ?? '转换失败';
+      showToast('错误', msg);
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  /** 判断当前选中的目标类型是否需要补充选科目 */
+  const needsAccountPick = convertTarget != null;
 
   if (loading) {
     return (
@@ -127,24 +173,20 @@ export default function EntryDetailScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>分录详情</Text>
         <View style={styles.headerActions}>
-          {editing ? (
-            <Pressable
-              onPress={handleSave}
-              style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
-              disabled={saving}
-            >
-              <Text style={styles.actionBtnText}>{saving ? '...' : '保存'}</Text>
+          {canConvert && (
+            <Pressable disabled style={[styles.headerBtn, { opacity: 0.3 }]}>
+              <FontAwesome name="exchange" size={16} color={Colors.neutral} />
             </Pressable>
-          ) : (
-            <>
-              <Pressable onPress={() => setEditing(true)} style={styles.headerBtn}>
-                <FontAwesome name="pencil" size={18} color={Colors.primary} />
-              </Pressable>
-              <Pressable onPress={handleDelete} style={styles.headerBtn}>
-                <FontAwesome name="trash" size={18} color={Colors.asset} />
-              </Pressable>
-            </>
           )}
+          <Pressable
+            onPress={() => router.push(`/entry/new?editId=${entry.id}` as any)}
+            style={styles.headerBtn}
+          >
+            <FontAwesome name="pencil" size={18} color={Colors.primary} />
+          </Pressable>
+          <Pressable onPress={handleDelete} style={styles.headerBtn}>
+            <FontAwesome name="trash" size={18} color={Colors.asset} />
+          </Pressable>
         </View>
       </View>
 
@@ -158,45 +200,17 @@ export default function EntryDetailScreen() {
 
           <View style={styles.row}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>日期</Text>
-            {editing ? (
-              <TextInput
-                style={[styles.editInput, { color: colors.text, borderColor: colors.border }]}
-                value={editDate}
-                onChangeText={setEditDate}
-              />
-            ) : (
-              <Text style={styles.value}>{entry.entry_date}</Text>
-            )}
+            <Text style={styles.value}>{entry.entry_date}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>摘要</Text>
-            {editing ? (
-              <TextInput
-                style={[styles.editInput, { color: colors.text, borderColor: colors.border }]}
-                value={editDesc}
-                onChangeText={setEditDesc}
-                placeholder="无"
-                placeholderTextColor={colors.textSecondary}
-              />
-            ) : (
-              <Text style={styles.value}>{entry.description || '无'}</Text>
-            )}
+            <Text style={styles.value}>{entry.description || '无'}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>备注</Text>
-            {editing ? (
-              <TextInput
-                style={[styles.editInput, { color: colors.text, borderColor: colors.border }]}
-                value={editNote}
-                onChangeText={setEditNote}
-                placeholder="无"
-                placeholderTextColor={colors.textSecondary}
-              />
-            ) : (
-              <Text style={styles.value}>{entry.note || '无'}</Text>
-            )}
+            <Text style={styles.value}>{entry.note || '无'}</Text>
           </View>
 
           <View style={styles.row}>
@@ -278,9 +292,339 @@ export default function EntryDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* 转换类型 Modal */}
+      {convertVisible && (
+        <ConvertModal
+          visible={convertVisible}
+          onClose={() => setConvertVisible(false)}
+          allowedTargets={allowedTargets}
+          convertTarget={convertTarget}
+          onSelectTarget={setConvertTarget}
+          categoryName={categoryName}
+          paymentName={paymentName}
+          onPickCategory={() => setCategoryPickerVisible(true)}
+          onPickPayment={() => setPaymentPickerVisible(true)}
+          converting={converting}
+          onConvert={handleConvert}
+          needsAccountPick={needsAccountPick}
+          colorScheme={colorScheme}
+        />
+      )}
+
+      {/* 分类科目选择 */}
+      <AccountPicker
+        visible={categoryPickerVisible}
+        onClose={() => setCategoryPickerVisible(false)}
+        onSelect={(acc) => {
+          setConvertCategoryId(acc.id);
+          setCategoryName(acc.name);
+        }}
+        selectedId={convertCategoryId}
+        bookId={currentBook?.id}
+      />
+
+      {/* 支付科目选择 */}
+      <AccountPicker
+        visible={paymentPickerVisible}
+        onClose={() => setPaymentPickerVisible(false)}
+        onSelect={(acc) => {
+          setConvertPaymentId(acc.id);
+          setPaymentName(acc.name);
+        }}
+        selectedId={convertPaymentId}
+        bookId={currentBook?.id}
+        allowedTypes={['asset', 'liability']}
+      />
+
+      {/* 删除确认 Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <Pressable
+          style={deleteModalStyles.overlay}
+          onPress={() => setShowDeleteModal(false)}
+        >
+          <View style={[deleteModalStyles.card, { backgroundColor: colorScheme === 'dark' ? Colors.dark.card : Colors.light.card }]}>
+            <Text style={[deleteModalStyles.title, { color: colors.text }]}>删除分录</Text>
+            <Text style={[deleteModalStyles.msg, { color: colors.textSecondary }]}>
+              确定要删除该分录吗？删除后无法恢复。
+            </Text>
+            <View style={deleteModalStyles.btns}>
+              <Pressable
+                style={[deleteModalStyles.btn, { backgroundColor: colors.background }]}
+                onPress={() => setShowDeleteModal(false)}
+              >
+                <Text style={{ color: colors.text, fontWeight: '600' }}>取消</Text>
+              </Pressable>
+              <Pressable
+                style={[deleteModalStyles.btn, { backgroundColor: '#EF4444' }]}
+                onPress={confirmDelete}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>删除</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Toast */}
+      {toastMsg ? (
+        <View style={deleteModalStyles.toast}>
+          <Text style={deleteModalStyles.toastText}>{toastMsg}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
+
+/** 转换类型 Modal 子组件 */
+function ConvertModal({
+  visible,
+  onClose,
+  allowedTargets,
+  convertTarget,
+  onSelectTarget,
+  categoryName,
+  paymentName,
+  onPickCategory,
+  onPickPayment,
+  converting,
+  onConvert,
+  needsAccountPick,
+  colorScheme,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  allowedTargets: EntryType[];
+  convertTarget: EntryType | null;
+  onSelectTarget: (t: EntryType) => void;
+  categoryName: string;
+  paymentName: string;
+  onPickCategory: () => void;
+  onPickPayment: () => void;
+  converting: boolean;
+  onConvert: () => void;
+  needsAccountPick: boolean;
+  colorScheme: 'light' | 'dark';
+}) {
+  const colors = Colors[colorScheme];
+  const cardBg = colorScheme === 'dark' ? Colors.dark.card : Colors.light.card;
+
+  const getTargetConfig = (type: EntryType): EntryTypeConfig | undefined =>
+    ENTRY_TYPES.find((t) => t.key === type);
+
+  const modalContent = (
+    <View style={[convertStyles.sheet, { backgroundColor: cardBg }]}>
+      <View style={convertStyles.sheetHeader}>
+        <Text style={convertStyles.sheetTitle}>转换分录类型</Text>
+        <Pressable onPress={onClose} style={convertStyles.closeBtn}>
+          <FontAwesome name="close" size={18} color={colors.text} />
+        </Pressable>
+      </View>
+
+      {/* 目标类型列表 */}
+      <View style={convertStyles.typeList}>
+        {allowedTargets.map((type) => {
+          const cfg = getTargetConfig(type);
+          if (!cfg) return null;
+          const active = convertTarget === type;
+          return (
+            <Pressable
+              key={type}
+              style={[
+                convertStyles.typeItem,
+                active && { backgroundColor: cfg.color + '18', borderColor: cfg.color },
+              ]}
+              onPress={() => onSelectTarget(type)}
+            >
+              <FontAwesome
+                name={cfg.icon}
+                size={16}
+                color={active ? cfg.color : colors.textSecondary}
+                style={{ marginRight: 8 }}
+              />
+              <Text
+                style={[
+                  convertStyles.typeLabel,
+                  { color: active ? cfg.color : colors.text },
+                  active && { fontWeight: '600' },
+                ]}
+              >
+                {cfg.label}
+              </Text>
+              {active && <FontAwesome name="check" size={14} color={cfg.color} />}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* 科目选择（当选中目标类型后展示） */}
+      {needsAccountPick && (
+        <View style={convertStyles.accountSection}>
+          <Text style={[convertStyles.accountHint, { color: colors.textSecondary }]}>
+            可选：指定新科目（不指定则沿用原科目）
+          </Text>
+          <Pressable
+            style={[convertStyles.accountRow, { borderColor: colors.border }]}
+            onPress={onPickCategory}
+          >
+            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>分类科目</Text>
+            <Text style={{ color: categoryName ? colors.text : colors.textSecondary, fontSize: 14 }}>
+              {categoryName || '沿用原科目'}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[convertStyles.accountRow, { borderColor: colors.border }]}
+            onPress={onPickPayment}
+          >
+            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>支付科目</Text>
+            <Text style={{ color: paymentName ? colors.text : colors.textSecondary, fontSize: 14 }}>
+              {paymentName || '沿用原科目'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* 确认按钮 */}
+      <Pressable
+        style={[
+          convertStyles.confirmBtn,
+          !convertTarget && { opacity: 0.4 },
+        ]}
+        disabled={!convertTarget || converting}
+        onPress={onConvert}
+      >
+        {converting ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={convertStyles.confirmText}>确认转换</Text>
+        )}
+      </Pressable>
+    </View>
+  );
+
+  if (Platform.OS === 'web') {
+    return (
+      <Pressable style={convertStyles.overlay} onPress={onClose}>
+        <Pressable onPress={(e) => e.stopPropagation?.()} style={convertStyles.webSheet}>
+          {modalContent}
+        </Pressable>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <Pressable style={convertStyles.overlay} onPress={onClose}>
+        <Pressable onPress={(e) => e.stopPropagation?.()}>
+          {modalContent}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const convertStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+    ...(Platform.OS === 'web'
+      ? ({
+          position: 'fixed' as any,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+          justifyContent: 'center',
+          alignItems: 'center',
+        } as any)
+      : {}),
+  },
+  webSheet: {
+    width: '90%',
+    maxWidth: 420,
+    maxHeight: '80%',
+  },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+    ...(Platform.OS === 'web' ? { borderRadius: 16 } : {}),
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  sheetTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeList: {
+    padding: 16,
+    gap: 8,
+  },
+  typeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  typeLabel: {
+    flex: 1,
+    fontSize: 15,
+  },
+  accountSection: {
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 8,
+  },
+  accountHint: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  confirmBtn: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -313,16 +657,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  actionBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  actionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   body: {
     flex: 1,
   },
@@ -350,13 +684,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'right',
-  },
-  editInput: {
-    flex: 1,
-    fontSize: 14,
-    textAlign: 'right',
-    borderBottomWidth: 1,
-    paddingVertical: 4,
   },
   linesSection: {
     marginHorizontal: 16,
@@ -405,5 +732,63 @@ const styles = StyleSheet.create({
   },
   totalText: {
     fontWeight: '600',
+  },
+});
+
+const deleteModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: {
+    width: '85%',
+    maxWidth: 420,
+    borderRadius: 14,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  msg: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  btns: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  btn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  toast: {
+    position: 'absolute',
+    top: 16,
+    left: 24,
+    right: 24,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    zIndex: 100,
+  },
+  toastText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

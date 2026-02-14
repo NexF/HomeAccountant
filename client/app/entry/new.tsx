@@ -1,29 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   ScrollView,
   Pressable,
   Alert,
   Platform,
-  KeyboardAvoidingView,
   TextInput,
-  useWindowDimensions,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { useAccountStore } from '@/stores/accountStore';
-import { entryService, type EntryType, type EntryCreateParams } from '@/services/entryService';
+import {
+  entryService,
+  type EntryType,
+  type EntryCreateParams,
+  type EntryUpdateParams,
+  type EntryDetailResponse,
+  type JournalLineResponse,
+} from '@/services/entryService';
 import { budgetService, type BudgetAlert as BudgetAlertType } from '@/services/budgetService';
-import BudgetAlert from '@/components/budget/BudgetAlert';
+import BudgetAlert from '@/features/budget/BudgetAlert';
 import type { AccountTreeNode } from '@/services/accountService';
-import EntryTypeTab, { ENTRY_TYPES } from '@/components/entry/EntryTypeTab';
-import AmountInput from '@/components/entry/AmountInput';
-import AccountPicker from '@/components/entry/AccountPicker';
+import EntryTypeTab, { ENTRY_TYPES } from '@/features/entry/EntryTypeTab';
+import AmountInput from '@/features/entry/AmountInput';
+import AccountPicker from '@/features/entry/AccountPicker';
 import type { AccountType } from '@/stores/accountStore';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 type PickerTarget =
   | 'category'
@@ -40,15 +46,28 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function NewEntryScreen() {
+export type NewEntryScreenProps = {
+  editIdProp?: string;
+  onClose?: () => void;
+};
+
+export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenProps = {}) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
+  const { editId: editIdParam } = useLocalSearchParams<{ editId?: string }>();
+  const editId = editIdProp ?? editIdParam;
+  const isEditMode = !!editId;
+  const isModal = !!onClose;
   const currentBook = useBookStore((s) => s.currentBook);
   const fetchTree = useAccountStore((s) => s.fetchTree);
   const accountTree = useAccountStore((s) => s.tree);
-  const { width: screenWidth } = useWindowDimensions();
-  const isDesktop = screenWidth >= 768;
+  const { isDesktop } = useBreakpoint();
+
+  const goBack = () => {
+    if (isModal) onClose?.();
+    else router.back();
+  };
 
   const [entryType, setEntryType] = useState<EntryType>('expense');
   const [amount, setAmount] = useState('');
@@ -148,8 +167,129 @@ export default function NewEntryScreen() {
     return null;
   };
 
-  // 切换类型时重置科目
+  /** 从 line 数据构造 AccountTreeNode 用于科目选择器预填 */
+  const toAccountNode = (line: JournalLineResponse): AccountTreeNode => ({
+    id: line.account_id,
+    book_id: '',
+    code: line.account_code ?? '',
+    name: line.account_name ?? '',
+    type: line.account_type ?? '',
+    parent_id: null,
+    balance_direction: 'debit',
+    icon: null,
+    is_system: false,
+    sort_order: 0,
+    is_active: true,
+    created_at: '',
+    children: [],
+  });
+
+  /** 从分录详情中提取主金额 */
+  const extractAmount = (entry: EntryDetailResponse): string => {
+    switch (entry.entry_type) {
+      case 'expense':
+      case 'income':
+      case 'transfer':
+      case 'borrow':
+        return Math.abs(Number(entry.lines[0]?.debit_amount || entry.lines[0]?.credit_amount || 0)).toString();
+      case 'asset_purchase':
+        return Number(entry.lines.find(l => Number(l.debit_amount) > 0)?.debit_amount || 0).toString();
+      case 'repay':
+        return '0';
+      default:
+        return '0';
+    }
+  };
+
+  /** 从分录 lines 反向推导科目并预填 */
+  const prefillAccounts = (entry: EntryDetailResponse) => {
+    const debitLines = entry.lines.filter(l => Number(l.debit_amount) > 0);
+    const creditLines = entry.lines.filter(l => Number(l.credit_amount) > 0);
+
+    switch (entry.entry_type) {
+      case 'expense':
+        if (debitLines[0]) setCategoryAccount(toAccountNode(debitLines[0]));
+        if (creditLines[0]) setPaymentAccount(toAccountNode(creditLines[0]));
+        break;
+      case 'income':
+        if (debitLines[0]) setPaymentAccount(toAccountNode(debitLines[0]));
+        if (creditLines[0]) setCategoryAccount(toAccountNode(creditLines[0]));
+        break;
+      case 'transfer':
+        if (debitLines[0]) setToAccount(toAccountNode(debitLines[0]));
+        if (creditLines[0]) setFromAccount(toAccountNode(creditLines[0]));
+        break;
+      case 'asset_purchase':
+        if (debitLines[0]) setAssetAccount(toAccountNode(debitLines[0]));
+        for (const line of creditLines) {
+          if (line.account_type === 'liability') {
+            setExtraLiabilityAccount(toAccountNode(line));
+            setExtraLiabilityAmount(Number(line.credit_amount).toString());
+          } else {
+            setPaymentAccount(toAccountNode(line));
+          }
+        }
+        break;
+      case 'borrow':
+        if (debitLines[0]) setPaymentAccount(toAccountNode(debitLines[0]));
+        if (creditLines[0]) setLiabilityAccount(toAccountNode(creditLines[0]));
+        break;
+      case 'repay':
+        for (const line of debitLines) {
+          if (line.account_type === 'liability') {
+            setLiabilityAccount(toAccountNode(line));
+            setPrincipal(Number(line.debit_amount).toString());
+          } else if (line.account_type === 'expense') {
+            setInterestCategoryAccount(toAccountNode(line));
+            setInterest(Number(line.debit_amount).toString());
+          }
+        }
+        if (creditLines[0]) setPaymentAccount(toAccountNode(creditLines[0]));
+        break;
+    }
+  };
+
+  // 编辑模式标记（用 ref 防止 entryType useEffect 在预填后立即重置数据）
+  const editPrefilledRef = useRef(false);
+  // 用于在预填完成后，跳过紧接着的一次 entryType useEffect 重置
+  const skipNextResetRef = useRef(false);
+
+  // 编辑模式：加载分录详情并预填
   useEffect(() => {
+    if (!isEditMode || !editId) return;
+    editPrefilledRef.current = false;
+    skipNextResetRef.current = true;
+    (async () => {
+      try {
+        const { data } = await entryService.getEntry(editId);
+        // 先标记跳过重置，再设置 entryType
+        skipNextResetRef.current = true;
+        setEntryType(data.entry_type as EntryType);
+        setEntryDate(data.entry_date);
+        setDescription(data.description ?? '');
+        setNote(data.note ?? '');
+
+        const amt = extractAmount(data);
+        if (data.entry_type !== 'repay') {
+          setAmount(amt);
+        }
+
+        prefillAccounts(data);
+        editPrefilledRef.current = true;
+      } catch (e: any) {
+        showToast('错误', '加载分录详情失败');
+      }
+    })();
+  }, [editId]);
+
+  // 切换类型时重置科目（编辑模式预填期间跳过）
+  useEffect(() => {
+    // 编辑模式：预填完成前始终跳过；预填完成后，跳过紧接着的一次重置
+    if (isEditMode && !editPrefilledRef.current) return;
+    if (skipNextResetRef.current) {
+      skipNextResetRef.current = false;
+      return;
+    }
     setCategoryAccount(null);
     setPaymentAccount(null);
     setAssetAccount(null);
@@ -375,27 +515,85 @@ export default function NewEntryScreen() {
       }
 
       setSubmitting(true);
-      await entryService.createEntry(currentBook.id, params);
 
-      // 费用类型记账后检查预算
-      if (entryType === 'expense' && categoryAccount) {
-        try {
-          const { data: checkResult } = await budgetService.checkBudget(
-            currentBook.id,
-            categoryAccount.id
-          );
-          if (checkResult.triggered && checkResult.alerts.length > 0) {
-            setBudgetAlerts(checkResult.alerts);
-            // 延迟返回让用户看到预算提醒
-            setTimeout(() => router.back(), 3000);
-            return;
+      if (isEditMode && editId) {
+        // 编辑模式：PUT 更新
+        const updateParams: EntryUpdateParams = {
+          entry_date: entryDate,
+          description: description || undefined,
+          note: note || undefined,
+        };
+        // 根据 entryType 附加业务字段
+        switch (entryType) {
+          case 'expense':
+            updateParams.amount = parseFloat(amount);
+            updateParams.category_account_id = categoryAccount!.id;
+            updateParams.payment_account_id = paymentAccount!.id;
+            break;
+          case 'income':
+            updateParams.amount = parseFloat(amount);
+            updateParams.category_account_id = categoryAccount!.id;
+            updateParams.payment_account_id = paymentAccount!.id;
+            break;
+          case 'asset_purchase':
+            if (extraLiabilityAccount && extraLiabilityAmount) {
+              const selfPay = parseFloat(amount) || 0;
+              const loanAmt = parseFloat(extraLiabilityAmount) || 0;
+              updateParams.amount = selfPay + loanAmt;
+              updateParams.asset_account_id = assetAccount!.id;
+              updateParams.payment_account_id = paymentAccount!.id;
+              updateParams.extra_liability_account_id = extraLiabilityAccount.id;
+              updateParams.extra_liability_amount = loanAmt;
+            } else {
+              updateParams.amount = parseFloat(amount);
+              updateParams.asset_account_id = assetAccount!.id;
+              updateParams.payment_account_id = paymentAccount!.id;
+            }
+            break;
+          case 'borrow':
+            updateParams.amount = parseFloat(amount);
+            updateParams.payment_account_id = paymentAccount!.id;
+            updateParams.liability_account_id = liabilityAccount!.id;
+            break;
+          case 'repay':
+            updateParams.principal = parseFloat(principal);
+            updateParams.interest = parseFloat(interest || '0');
+            updateParams.liability_account_id = liabilityAccount!.id;
+            updateParams.payment_account_id = paymentAccount!.id;
+            if (interestCategoryAccount) {
+              updateParams.category_account_id = interestCategoryAccount.id;
+            }
+            break;
+          case 'transfer':
+            updateParams.amount = parseFloat(amount);
+            updateParams.from_account_id = fromAccount!.id;
+            updateParams.to_account_id = toAccount!.id;
+            break;
+        }
+        await entryService.updateEntry(editId, updateParams);
+      } else {
+        // 新建模式：POST 创建
+        await entryService.createEntry(currentBook!.id, params);
+
+        // 费用类型记账后检查预算
+        if (entryType === 'expense' && categoryAccount) {
+          try {
+            const { data: checkResult } = await budgetService.checkBudget(
+              currentBook!.id,
+              categoryAccount.id
+            );
+            if (checkResult.triggered && checkResult.alerts.length > 0) {
+              setBudgetAlerts(checkResult.alerts);
+              setTimeout(() => goBack(), 3000);
+              return;
+            }
+          } catch {
+            // 预算检查失败不阻塞记账流程
           }
-        } catch {
-          // 预算检查失败不阻塞记账流程
         }
       }
 
-      router.back();
+      goBack();
     } catch (e: any) {
       const msg = e?.response?.data?.detail ?? '记账失败';
       showToast('错误', typeof msg === 'string' ? msg : JSON.stringify(msg));
@@ -498,7 +696,9 @@ export default function NewEntryScreen() {
                 </Pressable>
                 {renderAmountField('贷款金额', 'extra_liability', extraLiabilityAmount)}
 
-                {/* 贷款设置（可选） */}
+                {/* 贷款设置（可选，编辑模式下隐藏） */}
+                {!isEditMode && (
+                <>
                 <Pressable
                   style={[styles.field, { borderColor: colors.border }]}
                   onPress={() => setEnableLoan(!enableLoan)}
@@ -612,11 +812,13 @@ export default function NewEntryScreen() {
                     )}
                   </View>
                 )}
+                </>
+                )}
               </>
             )}
 
-            {/* 折旧设置：固定资产科目时自动展开 */}
-            {isFixedAssetAccount && (
+            {/* 折旧设置：固定资产科目时自动展开（编辑模式下隐藏） */}
+            {!isEditMode && isFixedAssetAccount && (
               <View style={[styles.depSection, { borderColor: colors.border }]}>
                 <View style={styles.depHeader}>
                   <FontAwesome name="cog" size={14} color={typeConfig.color} />
@@ -717,7 +919,9 @@ export default function NewEntryScreen() {
             {renderAccountField('负债科目', liabilityAccount, 'liability', ['liability'])}
             {renderAccountField('收款账户', paymentAccount, 'payment', ['asset'])}
 
-            {/* 贷款设置（可选） */}
+            {/* 贷款设置（可选，编辑模式下隐藏） */}
+            {!isEditMode && (
+            <>
             <Pressable
               style={[styles.field, { borderColor: colors.border }]}
               onPress={() => setEnableLoan(!enableLoan)}
@@ -837,6 +1041,8 @@ export default function NewEntryScreen() {
                 )}
               </View>
             )}
+            </>
+            )}
           </>
         );
       case 'repay':
@@ -862,14 +1068,14 @@ export default function NewEntryScreen() {
   };
 
   return (
-    <View style={isDesktop ? styles.desktopOverlay : styles.container}>
-      <View style={isDesktop ? [styles.desktopModal, { backgroundColor: colors.background }] : styles.container}>
+    <View style={isModal ? styles.container : (isDesktop ? styles.desktopOverlay : styles.container)}>
+      <View style={isModal ? [styles.container, { backgroundColor: colors.background }] : (isDesktop ? [styles.desktopModal, { backgroundColor: colors.background }] : styles.container)}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.headerBtn}>
+        <Pressable onPress={goBack} style={styles.headerBtn}>
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>记一笔</Text>
+        <Text style={styles.headerTitle}>{isEditMode ? '编辑分录' : '记一笔'}</Text>
         <Pressable
           onPress={handleSubmit}
           style={[styles.submitBtn, { backgroundColor: typeConfig.color, opacity: submitting ? 0.6 : 1 }]}
@@ -880,7 +1086,7 @@ export default function NewEntryScreen() {
       </View>
 
       {/* Entry Type Tabs */}
-      <EntryTypeTab activeType={entryType} onTypeChange={setEntryType} />
+      <EntryTypeTab activeType={entryType} onTypeChange={setEntryType} disabled={isEditMode} />
 
       {/* Form Fields */}
       <ScrollView style={styles.formArea} keyboardShouldPersistTaps="handled">

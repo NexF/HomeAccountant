@@ -7,6 +7,7 @@ from app.schemas.account import (
     CreateAccountRequest,
     UpdateAccountRequest,
     AccountResponse,
+    AccountCreateResponse,
     AccountTreeResponse,
 )
 from app.services.account_service import (
@@ -16,6 +17,7 @@ from app.services.account_service import (
     create_custom_account,
     update_account,
     deactivate_account,
+    AccountError,
 )
 from app.services.book_service import user_has_book_access
 from app.utils.api_key_auth import get_current_user_flexible
@@ -47,7 +49,7 @@ async def get_book_accounts(
 
 @router.post(
     "/books/{book_id}/accounts",
-    response_model=AccountResponse,
+    response_model=AccountCreateResponse,
     status_code=201,
     summary="新增科目",
 )
@@ -57,12 +59,11 @@ async def create_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """新增自定义科目"""
+    """新增自定义科目，如果父科目有历史分录则自动迁移"""
     await _check_book_access(current_user.id, book_id, db)
-    account = await create_custom_account(
+    account, migration_info = await create_custom_account(
         db,
         book_id=book_id,
-        code=body.code,
         name=body.name,
         acc_type=body.type,
         balance_direction=body.balance_direction,
@@ -70,7 +71,9 @@ async def create_account(
         icon=body.icon,
         sort_order=body.sort_order,
     )
-    return AccountResponse.model_validate(account)
+    resp = AccountCreateResponse.model_validate(account)
+    resp.migration = migration_info
+    return resp
 
 
 @router.put(
@@ -106,11 +109,14 @@ async def delete_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """软删除（停用）科目"""
+    """软删除（停用）科目，有分录引用或有子科目时拒绝"""
     account = await get_account_by_id(db, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="科目不存在")
     await _check_book_access(current_user.id, account.book_id, db)
 
-    deactivated = await deactivate_account(db, account)
+    try:
+        deactivated = await deactivate_account(db, account)
+    except AccountError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
     return AccountResponse.model_validate(deactivated)

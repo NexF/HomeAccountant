@@ -11,7 +11,7 @@ import {
   ACCOUNT_TYPE_ORDER,
   type AccountType,
 } from '@/stores/accountStore';
-import { accountService, type AccountTreeNode } from '@/services/accountService';
+import { accountService, type AccountTreeNode, type CreateAccountParams } from '@/services/accountService';
 import { syncService } from '@/services/syncService';
 import { styles, budgetStyles } from '@/features/profile/styles';
 
@@ -28,16 +28,24 @@ const DIRECTION_LABEL: Record<string, string> = {
   credit: '贷',
 };
 
+const DEFAULT_DIRECTION: Record<AccountType, 'debit' | 'credit'> = {
+  asset: 'debit',
+  liability: 'credit',
+  equity: 'credit',
+  income: 'credit',
+  expense: 'debit',
+};
+
 function AccountRow({
   node,
   depth,
   onPress,
-  onDeactivate,
+  onAdd,
 }: {
   node: AccountTreeNode;
   depth: number;
   onPress: (node: AccountTreeNode) => void;
-  onDeactivate: (node: AccountTreeNode) => void;
+  onAdd: (node: AccountTreeNode) => void;
 }) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
@@ -97,17 +105,15 @@ function AccountRow({
             {DIRECTION_LABEL[node.balance_direction]}
           </Text>
         </View>
-        {!node.is_system && (
-          <Pressable
-            style={styles.deleteBtn}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              onDeactivate(node);
-            }}
-          >
-            <FontAwesome name="trash-o" size={14} color={colors.textSecondary} />
-          </Pressable>
-        )}
+        <Pressable
+          style={styles.deleteBtn}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onAdd(node);
+          }}
+        >
+          <FontAwesome name="plus" size={13} color={Colors.primary} />
+        </Pressable>
       </Pressable>
       {expanded &&
         hasChildren &&
@@ -117,7 +123,7 @@ function AccountRow({
             node={child}
             depth={depth + 1}
             onPress={onPress}
-            onDeactivate={onDeactivate}
+            onAdd={onAdd}
           />
         ))}
     </>
@@ -149,9 +155,18 @@ function AccountDetailInline({
 
   const [childDetailId, setChildDetailId] = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
+  // 新增子科目 Modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createIcon, setCreateIcon] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  // 停用确认 Modal
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+
+  const showToast = (msg: string, duration = 3000) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 3000);
+    setTimeout(() => setToastMsg(''), duration);
   };
 
   const findNodeById = (nodes: AccountTreeNode[], id: string): AccountTreeNode | null => {
@@ -218,6 +233,50 @@ function AccountDetailInline({
       showToast('提交失败');
     } finally {
       setSnapshotLoading(false);
+    }
+  };
+
+  const handleAddChild = () => {
+    if (!account) return;
+    setCreateName('');
+    setCreateIcon('');
+    setShowCreateModal(true);
+  };
+
+  const handleCreateChild = async () => {
+    if (!account || !currentBook || !createName.trim()) return;
+    setCreating(true);
+    try {
+      const params: CreateAccountParams = {
+        name: createName.trim(),
+        type: account.type as CreateAccountParams['type'],
+        balance_direction: account.balance_direction,
+        parent_id: account.id,
+        ...(createIcon.trim() ? { icon: createIcon.trim() } : {}),
+      };
+      const { data } = await accountService.createAccount(currentBook.id, params);
+      setShowCreateModal(false);
+      await fetchTree(currentBook.id);
+      if (data.migration?.triggered) {
+        showToast(data.migration.message, 5000);
+      }
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || '创建失败');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleConfirmDeactivate = async () => {
+    if (!account) return;
+    try {
+      await accountService.deactivateAccount(account.id);
+      if (currentBook) await fetchTree(currentBook.id);
+      setShowDeactivateConfirm(false);
+      onBack();
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || '停用失败');
+      setShowDeactivateConfirm(false);
     }
   };
 
@@ -342,28 +401,155 @@ function AccountDetailInline({
           </>
         )}
 
-        {account.children.length > 0 && (
-          <>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              子科目（{account.children.length}）
-            </Text>
-            <View style={[styles.formCard, { backgroundColor: colors.card, marginBottom: 16 }]}>
-              {account.children.map((child) => (
-                <Pressable
-                  key={child.id}
-                  style={[styles.acctRow, { paddingLeft: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB' }]}
-                  onPress={() => setChildDetailId(child.id)}
-                >
-                  <FontAwesome name={(child.icon as any) || 'circle-o'} size={14} color={Colors.primary} style={{ width: 24 }} />
-                  <Text style={{ flex: 1, fontSize: 14, fontWeight: '500', marginLeft: 8 }}>{child.name}</Text>
-                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginRight: 4 }}>{child.code}</Text>
-                  <FontAwesome name="chevron-right" size={10} color={colors.textSecondary} style={{ opacity: 0.4 }} />
-                </Pressable>
-              ))}
+        {/* 子科目 section — 始终显示 */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 4 }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            {account.children.length > 0
+              ? `子科目（${account.children.length}）`
+              : '新增子科目'}
+          </Text>
+          <Pressable
+            style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+            onPress={handleAddChild}
+          >
+            <FontAwesome name="plus" size={13} color={Colors.primary} />
+          </Pressable>
+        </View>
+        <View style={[styles.formCard, { backgroundColor: colors.card, marginBottom: 16 }]}>
+          {account.children.length > 0 ? (
+            account.children.map((child) => (
+              <Pressable
+                key={child.id}
+                style={[styles.acctRow, { paddingLeft: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB' }]}
+                onPress={() => setChildDetailId(child.id)}
+              >
+                <FontAwesome name={(child.icon as any) || 'circle-o'} size={14} color={Colors.primary} style={{ width: 24 }} />
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '500', marginLeft: 8 }}>{child.name}</Text>
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginRight: 4 }}>{child.code}</Text>
+                <FontAwesome name="chevron-right" size={10} color={colors.textSecondary} style={{ opacity: 0.4 }} />
+              </Pressable>
+            ))
+          ) : (
+            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+                点击右侧 ＋ 添加子科目
+              </Text>
             </View>
-          </>
+          )}
+        </View>
+
+        {/* 停用科目按钮 — 仅非系统科目显示 */}
+        {!account.is_system && (
+          <Pressable
+            style={{
+              height: 44,
+              borderRadius: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#FEE2E2',
+              marginTop: 24,
+              marginBottom: 40,
+            }}
+            onPress={() => setShowDeactivateConfirm(true)}
+          >
+            <Text style={{ color: '#EF4444', fontSize: 15, fontWeight: '600' }}>停用科目</Text>
+          </Pressable>
         )}
       </ScrollView>
+
+      {/* 新增子科目 Modal */}
+      <Modal visible={showCreateModal} transparent animationType="fade">
+        <Pressable style={budgetStyles.overlay} onPress={() => setShowCreateModal(false)}>
+          <Pressable
+            style={[budgetStyles.content, { backgroundColor: colors.card }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[budgetStyles.title, { color: colors.text }]}>新增子科目</Text>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary }}>父科目</Text>
+              <View style={{ backgroundColor: Colors.primary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '500' }}>
+                  {account.name}（{account.code}）
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary }}>类型</Text>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>
+                {ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary }}>余额方向</Text>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>
+                {account.balance_direction === 'debit' ? '借方' : '贷方'}
+              </Text>
+            </View>
+
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 4 }}>名称</Text>
+              <TextInput
+                style={{ fontSize: 15, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderRadius: 8, color: colors.text, borderColor: colors.border }}
+                value={createName}
+                onChangeText={setCreateName}
+                placeholder="科目名称"
+                placeholderTextColor={colors.textSecondary}
+                autoFocus
+              />
+            </View>
+
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 4 }}>图标（可选）</Text>
+              <TextInput
+                style={{ fontSize: 15, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderRadius: 8, color: colors.text, borderColor: colors.border }}
+                value={createIcon}
+                onChangeText={setCreateIcon}
+                placeholder="FontAwesome 图标名"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            <View style={budgetStyles.btns}>
+              <Pressable style={[budgetStyles.btn, { backgroundColor: colors.border }]} onPress={() => setShowCreateModal(false)}>
+                <Text style={{ color: colors.text, fontWeight: '600' }}>取消</Text>
+              </Pressable>
+              <Pressable
+                style={[budgetStyles.btn, { backgroundColor: createName.trim() ? Colors.primary : colors.border }]}
+                onPress={handleCreateChild}
+                disabled={!createName.trim() || creating}
+              >
+                {creating ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '600' }}>创建</Text>}
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 停用确认 Modal */}
+      <Modal visible={showDeactivateConfirm} transparent animationType="fade">
+        <Pressable style={budgetStyles.overlay} onPress={() => setShowDeactivateConfirm(false)}>
+          <Pressable
+            style={[budgetStyles.content, { backgroundColor: colors.card }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[budgetStyles.title, { color: colors.text }]}>停用科目</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 }}>
+              确定要停用「{account.name}」吗？
+            </Text>
+            <View style={budgetStyles.btns}>
+              <Pressable style={[budgetStyles.btn, { backgroundColor: colors.border }]} onPress={() => setShowDeactivateConfirm(false)}>
+                <Text style={{ color: colors.text, fontWeight: '600' }}>取消</Text>
+              </Pressable>
+              <Pressable style={[budgetStyles.btn, { backgroundColor: '#EF4444' }]} onPress={handleConfirmDeactivate}>
+                <Text style={{ color: '#FFF', fontWeight: '600' }}>停用</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {toastMsg ? (
         <View style={{ position: 'absolute', top: 16, left: 24, right: 24, backgroundColor: toastMsg.includes('失败') || toastMsg.includes('错误') ? '#EF4444' : Colors.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', zIndex: 999 }}>
@@ -381,12 +567,19 @@ export default function AccountsPane() {
   const { tree, isLoading, fetchTree } = useAccountStore();
   const [activeTab, setActiveTab] = useState<AccountType>('asset');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<AccountTreeNode | null>(null);
   const [toastMsg, setToastMsg] = useState('');
 
-  const showToast = (msg: string) => {
+  // 新增科目 Modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createParent, setCreateParent] = useState<AccountTreeNode | null>(null);
+  const [createName, setCreateName] = useState('');
+  const [createDirection, setCreateDirection] = useState<'debit' | 'credit'>('debit');
+  const [createIcon, setCreateIcon] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const showToast = (msg: string, duration = 3000) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 3000);
+    setTimeout(() => setToastMsg(''), duration);
   };
 
   useEffect(() => {
@@ -403,20 +596,46 @@ export default function AccountsPane() {
     setSelectedAccountId(node.id);
   };
 
-  const handleDeactivate = async (node: AccountTreeNode) => {
-    setDeleteTarget(node);
+  const handleAdd = (node: AccountTreeNode) => {
+    setCreateParent(node);
+    setCreateName('');
+    setCreateDirection(node.balance_direction);
+    setCreateIcon('');
+    setShowCreateModal(true);
   };
 
-  const confirmDeactivate = async () => {
-    if (!deleteTarget) return;
+  const handleHeaderAdd = () => {
+    setCreateParent(null);
+    setCreateName('');
+    setCreateDirection(DEFAULT_DIRECTION[activeTab]);
+    setCreateIcon('');
+    setShowCreateModal(true);
+  };
+
+  const handleCreate = async () => {
+    if (!currentBook || !createName.trim()) return;
+    setCreating(true);
     try {
-      await accountService.deactivateAccount(deleteTarget.id);
-      if (currentBook) fetchTree(currentBook.id);
-      setDeleteTarget(null);
-      showToast('科目已停用');
-    } catch {
-      showToast('停用失败');
-      setDeleteTarget(null);
+      const params: CreateAccountParams = {
+        name: createName.trim(),
+        type: createParent ? (createParent.type as CreateAccountParams['type']) : activeTab,
+        balance_direction: createParent ? createParent.balance_direction : createDirection,
+        ...(createParent ? { parent_id: createParent.id } : {}),
+        ...(createIcon.trim() ? { icon: createIcon.trim() } : {}),
+      };
+
+      const { data } = await accountService.createAccount(currentBook.id, params);
+      setShowCreateModal(false);
+      await fetchTree(currentBook.id);
+
+      if (data.migration?.triggered) {
+        showToast(data.migration.message, 5000);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || '创建失败';
+      showToast(msg);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -441,8 +660,14 @@ export default function AccountsPane() {
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={[styles.detailContent, { paddingBottom: 10, backgroundColor: 'transparent' }]}>
+      <View style={[styles.detailContent, { paddingBottom: 10, backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <Text style={[styles.detailTitle, { color: colors.text, marginBottom: 0 }]}>科目管理</Text>
+        <Pressable
+          onPress={handleHeaderAdd}
+          style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <FontAwesome name="plus" size={18} color={Colors.primary} />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -501,33 +726,114 @@ export default function AccountsPane() {
               node={node}
               depth={0}
               onPress={handlePress}
-              onDeactivate={handleDeactivate}
+              onAdd={handleAdd}
             />
           ))
         )}
       </ScrollView>
 
-      <Modal visible={deleteTarget !== null} transparent animationType="fade">
-        <Pressable style={budgetStyles.overlay} onPress={() => setDeleteTarget(null)}>
-          <View style={[budgetStyles.content, { backgroundColor: colors.card }]}>
-            <Text style={[budgetStyles.title, { color: colors.text }]}>停用科目</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 }}>
-              确定要停用「{deleteTarget?.name}」吗？
+      {/* 新增科目 Modal */}
+      <Modal visible={showCreateModal} transparent animationType="fade">
+        <Pressable style={budgetStyles.overlay} onPress={() => setShowCreateModal(false)}>
+          <Pressable
+            style={[budgetStyles.content, { backgroundColor: colors.card }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[budgetStyles.title, { color: colors.text }]}>
+              {createParent ? '新增子科目' : '新增科目'}
             </Text>
+
+            {createParent && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, color: colors.textSecondary }}>父科目</Text>
+                <View style={{ backgroundColor: Colors.primary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                  <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '500' }}>
+                    {createParent.name}（{createParent.code}）
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary }}>类型</Text>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>
+                {ACCOUNT_TYPE_LABELS[
+                  createParent ? (createParent.type as AccountType) : activeTab
+                ]}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary }}>余额方向</Text>
+              {createParent ? (
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>
+                  {createParent.balance_direction === 'debit' ? '借方' : '贷方'}
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {(['debit', 'credit'] as const).map((dir) => (
+                    <Pressable
+                      key={dir}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 5,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: createDirection === dir ? Colors.primary : 'transparent',
+                        backgroundColor: createDirection === dir ? Colors.primary + '20' : 'transparent',
+                      }}
+                      onPress={() => setCreateDirection(dir)}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '500', color: createDirection === dir ? Colors.primary : colors.textSecondary }}>
+                        {dir === 'debit' ? '借方' : '贷方'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 4 }}>名称</Text>
+              <TextInput
+                style={{ fontSize: 15, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderRadius: 8, color: colors.text, borderColor: colors.border }}
+                value={createName}
+                onChangeText={setCreateName}
+                placeholder="科目名称"
+                placeholderTextColor={colors.textSecondary}
+                autoFocus
+              />
+            </View>
+
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 4 }}>图标（可选）</Text>
+              <TextInput
+                style={{ fontSize: 15, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderRadius: 8, color: colors.text, borderColor: colors.border }}
+                value={createIcon}
+                onChangeText={setCreateIcon}
+                placeholder="FontAwesome 图标名"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
             <View style={budgetStyles.btns}>
-              <Pressable style={[budgetStyles.btn, { backgroundColor: colors.border }]} onPress={() => setDeleteTarget(null)}>
+              <Pressable style={[budgetStyles.btn, { backgroundColor: colors.border }]} onPress={() => setShowCreateModal(false)}>
                 <Text style={{ color: colors.text, fontWeight: '600' }}>取消</Text>
               </Pressable>
-              <Pressable style={[budgetStyles.btn, { backgroundColor: '#EF4444' }]} onPress={confirmDeactivate}>
-                <Text style={{ color: '#FFF', fontWeight: '600' }}>停用</Text>
+              <Pressable
+                style={[budgetStyles.btn, { backgroundColor: createName.trim() ? Colors.primary : colors.border }]}
+                onPress={handleCreate}
+                disabled={!createName.trim() || creating}
+              >
+                {creating ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '600' }}>创建</Text>}
               </Pressable>
             </View>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
 
       {toastMsg ? (
-        <View style={{ position: 'absolute', top: 16, left: 24, right: 24, backgroundColor: toastMsg.includes('失败') ? '#EF4444' : Colors.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', zIndex: 999 }}>
+        <View style={{ position: 'absolute', top: 16, left: 24, right: 24, backgroundColor: toastMsg.includes('失败') || toastMsg.includes('错误') ? '#EF4444' : Colors.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', zIndex: 999 }}>
           <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>{toastMsg}</Text>
         </View>
       ) : null}

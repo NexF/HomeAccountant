@@ -42,8 +42,8 @@ class TestGetAccountTree:
         )
         tree = resp.json()
         asset_codes = [a["code"] for a in tree["asset"]]
-        assert "1001" in asset_codes  # 现金
-        assert "1002" in asset_codes  # 银行存款
+        assert "1001" in asset_codes  # 货币资金
+        assert "1002" in asset_codes  # 现金等价物
         assert "1501" in asset_codes  # 固定资产
 
         expense_codes = [e["code"] for e in tree["expense"]]
@@ -53,7 +53,7 @@ class TestGetAccountTree:
     async def test_children_loaded(
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
-        """子科目正确嵌套（如银行存款下有工商银行/招商银行）"""
+        """子科目正确嵌套（如现金等价物下有货币基金/短期国债）"""
         resp = await client.get(
             f"/books/{test_book.id}/accounts", headers=auth_headers
         )
@@ -81,7 +81,6 @@ class TestCreateAccount:
         resp = await client.post(
             f"/books/{test_book.id}/accounts",
             json={
-                "code": "5020",
                 "name": "宠物花销",
                 "type": "expense",
                 "balance_direction": "debit",
@@ -91,7 +90,7 @@ class TestCreateAccount:
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["code"] == "5020"
+        assert data["code"]  # 编码由系统自动生成
         assert data["name"] == "宠物花销"
         assert data["is_system"] is False
 
@@ -109,7 +108,6 @@ class TestCreateAccount:
         resp = await client.post(
             f"/books/{test_book.id}/accounts",
             json={
-                "code": "1002-03",
                 "name": "建设银行",
                 "type": "asset",
                 "balance_direction": "debit",
@@ -132,7 +130,6 @@ class TestUpdateAccount:
         create_resp = await client.post(
             f"/books/{test_book.id}/accounts",
             json={
-                "code": "5021",
                 "name": "旧名称",
                 "type": "expense",
                 "balance_direction": "debit",
@@ -170,7 +167,6 @@ class TestDeleteAccount:
         create_resp = await client.post(
             f"/books/{test_book.id}/accounts",
             json={
-                "code": "5022",
                 "name": "待停用",
                 "type": "expense",
                 "balance_direction": "debit",

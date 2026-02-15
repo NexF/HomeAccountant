@@ -47,9 +47,7 @@ function AccountItem({
   const isSelected = node.id === selectedId;
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
-
-  // 只允许选择叶子节点（无子科目）或任何节点
-  const isLeaf = !hasChildren;
+  const isLeaf = node.is_leaf ?? !hasChildren;
 
   return (
     <>
@@ -58,12 +56,15 @@ function AccountItem({
           styles.item,
           { paddingLeft: 16 + depth * 20 },
           isSelected && { backgroundColor: Colors.primary + '12' },
+          !isLeaf && styles.parentItem,
         ]}
         onPress={() => {
           if (hasChildren) {
             setExpanded(!expanded);
           }
-          onSelect(node);
+          if (isLeaf) {
+            onSelect(node);
+          }
         }}
       >
         {hasChildren ? (
@@ -79,13 +80,24 @@ function AccountItem({
         <FontAwesome
           name={(node.icon as any) || 'circle-o'}
           size={14}
-          color={typeColor}
+          color={isLeaf ? typeColor : colors.textSecondary}
           style={styles.itemIcon}
         />
-        <Text style={[styles.itemName, isSelected && { color: Colors.primary, fontWeight: '600' }]}>
+        <Text
+          style={[
+            styles.itemName,
+            !isLeaf && { color: colors.textSecondary, fontWeight: '600', fontSize: 13 },
+            isSelected && { color: Colors.primary, fontWeight: '600' },
+          ]}
+        >
           {node.name}
         </Text>
-        {isSelected && (
+        {!isLeaf && (
+          <Text style={[styles.parentHint, { color: colors.textSecondary }]}>
+            {node.children.length}个子科目
+          </Text>
+        )}
+        {isSelected && isLeaf && (
           <FontAwesome name="check" size={14} color={Colors.primary} />
         )}
       </Pressable>
@@ -145,6 +157,8 @@ export default function AccountPicker({
   const currentAccounts = tree ? tree[activeTab] : [];
 
   const handleSelect = (node: AccountTreeNode) => {
+    const isLeaf = node.is_leaf ?? (node.children.length === 0);
+    if (!isLeaf) return;
     onSelect(node);
     onClose();
   };
@@ -322,6 +336,13 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#F3F4F6',
+  },
+  parentItem: {
+    opacity: 0.75,
+  },
+  parentHint: {
+    fontSize: 11,
+    marginRight: 4,
   },
   chevron: {
     width: 16,

@@ -43,7 +43,7 @@ def _expense_item(accounts, idx=0, external_id=None):
         "entry_date": "2025-06-01",
         "amount": "50.00",
         "category_account_id": accounts["5001"],
-        "payment_account_id": accounts["1001"],
+        "payment_account_id": accounts["1001-01"],
         "description": f"午餐 #{idx}",
     }
     if external_id:
@@ -57,7 +57,7 @@ def _income_item(accounts, idx=0, external_id=None):
         "entry_date": "2025-06-01",
         "amount": "8000.00",
         "category_account_id": accounts["4001"],
-        "payment_account_id": accounts["1002"],
+        "payment_account_id": accounts["1002-01"],
         "description": f"工资 #{idx}",
     }
     if external_id:
@@ -70,8 +70,8 @@ def _transfer_item(accounts, idx=0, external_id=None):
         "entry_type": "transfer",
         "entry_date": "2025-06-01",
         "amount": "1000.00",
-        "from_account_id": accounts["1002"],
-        "to_account_id": accounts["1001"],
+        "from_account_id": accounts["1002-01"],
+        "to_account_id": accounts["1001-01"],
         "description": f"取现 #{idx}",
     }
     if external_id:
@@ -400,7 +400,7 @@ class TestTransactionBoundary:
                 "entry_date": "2025-06-01",
                 "amount": "100.00",
                 "category_account_id": str(uuid.uuid4()),
-                "payment_account_id": accounts["1001"],
+                "payment_account_id": accounts["1001-01"],
             },
         ]
         resp = await client.post(
@@ -440,7 +440,7 @@ class TestTransactionBoundary:
                 "entry_date": "2025-06-01",
                 "amount": "100.00",
                 "category_account_id": str(uuid.uuid4()),
-                "payment_account_id": accounts["1001"],
+                "payment_account_id": accounts["1001-01"],
             },
         ]
         await client.post(

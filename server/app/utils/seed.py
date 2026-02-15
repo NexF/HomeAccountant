@@ -8,9 +8,8 @@ from app.models.account import Account
 # 预置科目定义: (code, name, type, balance_direction, icon, sort_order)
 PRESET_ACCOUNTS: list[tuple[str, str, str, str, str, int]] = [
     # ===== 一、资产类 =====
-    ("1001", "现金", "asset", "debit", "cash", 100),
-    ("1002", "银行存款", "asset", "debit", "bank", 200),
-    ("1003", "第三方支付", "asset", "debit", "wallet", 300),
+    ("1001", "货币资金", "asset", "debit", "cash", 100),
+    ("1002", "现金等价物", "asset", "debit", "money-market", 200),
     ("1101", "应收款项", "asset", "debit", "receivable", 400),
     ("1201", "短期投资", "asset", "debit", "stock", 500),
     ("1301", "预付款项", "asset", "debit", "prepaid", 600),
@@ -57,16 +56,24 @@ PRESET_ACCOUNTS: list[tuple[str, str, str, str, str, int]] = [
     ("5100", "待分类费用", "expense", "debit", "unclassified-expense", 1900),
 ]
 
-# 银行存款子科目
-BANK_SUB_ACCOUNTS: list[tuple[str, str, str]] = [
-    ("1002-01", "工商银行", "bank-icbc"),
-    ("1002-02", "招商银行", "bank-cmb"),
+# 货币资金子科目 (1001 下)
+CASH_SUB_ACCOUNTS: list[tuple[str, str, str]] = [
+    ("1001-01", "现金", "cash"),
+    ("1001-02", "存款", "bank"),
 ]
 
-# 第三方支付子科目
-PAYMENT_SUB_ACCOUNTS: list[tuple[str, str, str]] = [
-    ("1003-01", "支付宝", "alipay"),
-    ("1003-02", "微信钱包", "wechat-pay"),
+# 存款的三级子科目 (1001-02 下)
+DEPOSIT_SUB_ACCOUNTS: list[tuple[str, str, str]] = [
+    ("1001-0201", "工商银行", "bank-icbc"),
+    ("1001-0202", "招商银行", "bank-cmb"),
+    ("1001-0203", "支付宝", "alipay"),
+    ("1001-0204", "微信钱包", "wechat-pay"),
+]
+
+# 现金等价物子科目 (1002 下)
+CASH_EQUIV_SUB_ACCOUNTS: list[tuple[str, str, str]] = [
+    ("1002-01", "货币基金", "money-fund"),
+    ("1002-02", "短期国债", "treasury-bond"),
 ]
 
 # 信用卡子科目
@@ -104,10 +111,10 @@ async def seed_accounts_for_book(db: AsyncSession, book_id: str) -> list[Account
     for acc in created_accounts:
         parent_map[acc.code] = acc.id
 
-    # 2. 创建子科目
+    # 2. 创建二级子科目
     sub_account_groups = [
-        ("1002", BANK_SUB_ACCOUNTS, "asset", "debit"),
-        ("1003", PAYMENT_SUB_ACCOUNTS, "asset", "debit"),
+        ("1001", CASH_SUB_ACCOUNTS, "asset", "debit"),
+        ("1002", CASH_EQUIV_SUB_ACCOUNTS, "asset", "debit"),
         ("2001", CREDIT_CARD_SUB_ACCOUNTS, "liability", "credit"),
     ]
 
@@ -127,6 +134,29 @@ async def seed_accounts_for_book(db: AsyncSession, book_id: str) -> list[Account
             )
             db.add(sub)
             created_accounts.append(sub)
+
+    await db.flush()
+
+    # 更新 parent_map（二级科目的 id 也需要记录，用于创建三级科目）
+    for acc in created_accounts:
+        parent_map[acc.code] = acc.id
+
+    # 3. 创建三级子科目（存款下的银行/支付账户）
+    deposit_parent_id = parent_map.get("1001-02")
+    for idx, (code, name, icon) in enumerate(DEPOSIT_SUB_ACCOUNTS):
+        sub = Account(
+            book_id=book_id,
+            code=code,
+            name=name,
+            type="asset",
+            parent_id=deposit_parent_id,
+            balance_direction="debit",
+            icon=icon,
+            is_system=True,
+            sort_order=(idx + 1) * 10,
+        )
+        db.add(sub)
+        created_accounts.append(sub)
 
     await db.flush()
     return created_accounts

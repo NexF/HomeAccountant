@@ -198,9 +198,10 @@ class TestBudgetOverviewAndCheck:
         )
         expense_accounts = acct_resp.json()["expense"]
         food_account = next(a for a in expense_accounts if a["code"] == "5001")
-        # 获取资产科目
+        # 获取资产科目（叶子节点）
         asset_accounts = acct_resp.json()["asset"]
-        bank_account = next(a for a in asset_accounts if a["code"] == "1002")
+        cash_equiv = next(a for a in asset_accounts if a["code"] == "1002")
+        bank_account = next(c for c in cash_equiv["children"] if c["code"] == "1002-01")
 
         # 设置分类预算 3000，阈值 80%
         await client.post(
@@ -249,7 +250,8 @@ class TestBudgetOverviewAndCheck:
         expense_accounts = acct_resp.json()["expense"]
         food_account = next(a for a in expense_accounts if a["code"] == "5001")
         asset_accounts = acct_resp.json()["asset"]
-        bank_account = next(a for a in asset_accounts if a["code"] == "1002")
+        cash_equiv = next(a for a in asset_accounts if a["code"] == "1002")
+        bank_account = next(c for c in cash_equiv["children"] if c["code"] == "1002-01")
 
         await client.post(
             f"/books/{test_book.id}/budgets",

@@ -172,7 +172,7 @@ class TestMCPWriteTools:
                 "entry_date": "2025-06-01",
                 "amount": "35.50",
                 "category_account_id": accounts["5001"],
-                "payment_account_id": accounts["1001"],
+                "payment_account_id": accounts["1001-01"],
                 "description": "MCP 测试-午餐",
             },
         ]
@@ -202,7 +202,7 @@ class TestMCPWriteTools:
                 "entry_date": "2025-06-15",
                 "amount": "8000.00",
                 "category_account_id": accounts["4001"],
-                "payment_account_id": accounts["1002"],
+                "payment_account_id": accounts["1002-01"],
                 "description": "MCP 测试-工资",
             },
         ]
@@ -228,7 +228,7 @@ class TestMCPWriteTools:
                 "entry_date": "2025-06-01",
                 "amount": "20.00",
                 "category_account_id": accounts["5001"],
-                "payment_account_id": accounts["1001"],
+                "payment_account_id": accounts["1001-01"],
                 "description": "MCP 测试-将被删除",
             },
         ]
@@ -257,7 +257,7 @@ class TestMCPWriteTools:
         # 获取一个银行账户 ID
         accs_data = await mcp_client.list_accounts(test_book.id)
         # 找到银行存款 (1002)
-        bank_id = accounts["1002"]
+        bank_id = accounts["1002-01"]
         result = await mcp_client.submit_snapshot(bank_id, 10000.0, "2025-06-01")
         assert isinstance(result, dict)
 
@@ -338,7 +338,7 @@ class TestMCPReportsAfterEntries:
                 "entry_date": "2025-06-01",
                 "amount": "100.00",
                 "category_account_id": accounts["5001"],
-                "payment_account_id": accounts["1001"],
+                "payment_account_id": accounts["1001-01"],
                 "description": "报表测试-午餐",
             },
         ]

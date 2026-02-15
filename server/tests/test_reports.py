@@ -31,7 +31,7 @@ async def _get_account_id(client, book_id, code, headers):
 async def _create_expense(client, book_id, amount, headers):
     """辅助方法：创建一笔费用分录"""
     food_id = await _get_account_id(client, book_id, "5001", headers)
-    cash_id = await _get_account_id(client, book_id, "1001", headers)
+    cash_id = await _get_account_id(client, book_id, "1001-01", headers)
     return await client.post(
         f"/books/{book_id}/entries",
         json={
@@ -48,7 +48,7 @@ async def _create_expense(client, book_id, amount, headers):
 async def _create_income(client, book_id, amount, headers):
     """辅助方法：创建一笔收入分录"""
     salary_id = await _get_account_id(client, book_id, "4001", headers)
-    bank_id = await _get_account_id(client, book_id, "1002", headers)
+    bank_id = await _get_account_id(client, book_id, "1002-01", headers)
     return await client.post(
         f"/books/{book_id}/entries",
         json={

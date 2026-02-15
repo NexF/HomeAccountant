@@ -21,8 +21,21 @@ class EntryError(Exception):
 
 # ─────────────────────── helpers ───────────────────────
 
-async def _get_account(db: AsyncSession, account_id: str, book_id: str) -> Account:
-    """获取科目并校验归属"""
+async def _check_is_leaf(db: AsyncSession, account_id: str) -> bool:
+    """检查科目是否为叶子节点（无活跃子科目）"""
+    child_count_result = await db.execute(
+        select(func.count()).select_from(Account).where(
+            Account.parent_id == account_id,
+            Account.is_active == True,
+        )
+    )
+    return child_count_result.scalar() == 0
+
+
+async def _get_account(
+    db: AsyncSession, account_id: str, book_id: str, require_leaf: bool = True,
+) -> Account:
+    """获取科目并校验归属，默认要求必须为叶子节点"""
     result = await db.execute(
         select(Account).where(
             Account.id == account_id,
@@ -33,6 +46,21 @@ async def _get_account(db: AsyncSession, account_id: str, book_id: str) -> Accou
     acc = result.scalar_one_or_none()
     if not acc:
         raise EntryError(f"科目不存在或已停用: {account_id}", 404)
+
+    if require_leaf and not await _check_is_leaf(db, acc.id):
+        # 查询子科目数量用于提示
+        child_count_result = await db.execute(
+            select(func.count()).select_from(Account).where(
+                Account.parent_id == acc.id,
+                Account.is_active == True,
+            )
+        )
+        child_count = child_count_result.scalar()
+        raise EntryError(
+            f"科目「{acc.name}」（{acc.code}）为非末级科目，"
+            f"含 {child_count} 个子科目，请选择其下的末级科目记账"
+        )
+
     return acc
 
 

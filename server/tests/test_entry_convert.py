@@ -39,7 +39,7 @@ async def _get_account_id(client, book_id, code, headers):
 async def _create_expense(client, book_id, headers, amount=100):
     """创建一笔费用分录，返回响应 JSON"""
     food_id = await _get_account_id(client, book_id, "5001", headers)
-    cash_id = await _get_account_id(client, book_id, "1001", headers)
+    cash_id = await _get_account_id(client, book_id, "1001-01", headers)
     resp = await client.post(
         f"/books/{book_id}/entries",
         json={
@@ -62,8 +62,8 @@ async def _create_asset_purchase(client, book_id, headers, amount=5000):
     other_asset_id = await _get_account_id(client, book_id, "1009", headers)
     if not other_asset_id:
         # 如果 1009 不存在，用银行存款 1002 作为资产科目
-        other_asset_id = await _get_account_id(client, book_id, "1002", headers)
-    cash_id = await _get_account_id(client, book_id, "1001", headers)
+        other_asset_id = await _get_account_id(client, book_id, "1002-01", headers)
+    cash_id = await _get_account_id(client, book_id, "1001-01", headers)
     resp = await client.post(
         f"/books/{book_id}/entries",
         json={
@@ -82,8 +82,8 @@ async def _create_asset_purchase(client, book_id, headers, amount=5000):
 
 async def _create_transfer(client, book_id, headers, amount=200):
     """创建一笔转账分录，返回响应 JSON"""
-    cash_id = await _get_account_id(client, book_id, "1001", headers)
-    bank_id = await _get_account_id(client, book_id, "1002", headers)
+    cash_id = await _get_account_id(client, book_id, "1001-01", headers)
+    bank_id = await _get_account_id(client, book_id, "1002-01", headers)
     resp = await client.post(
         f"/books/{book_id}/entries",
         json={
@@ -103,7 +103,7 @@ async def _create_transfer(client, book_id, headers, amount=200):
 async def _create_income(client, book_id, headers, amount=1000):
     """创建一笔收入分录，返回响应 JSON"""
     salary_id = await _get_account_id(client, book_id, "4001", headers)
-    bank_id = await _get_account_id(client, book_id, "1002", headers)
+    bank_id = await _get_account_id(client, book_id, "1002-01", headers)
     resp = await client.post(
         f"/books/{book_id}/entries",
         json={
@@ -147,7 +147,7 @@ class TestExpenseToAssetPurchase:
         original_created_at = expense["created_at"]
 
         # 获取资产科目用于转换
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
 
         resp = await client.post(
             f"/entries/{entry_id}/convert",
@@ -224,8 +224,8 @@ class TestExpenseToTransfer:
         entry_id = expense["id"]
 
         # 转账需要 from/to，使用 category 作为 to，payment 作为 from
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         resp = await client.post(
             f"/entries/{entry_id}/convert",
@@ -261,7 +261,7 @@ class TestTransferToExpense:
         entry_id = transfer["id"]
 
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         resp = await client.post(
             f"/entries/{entry_id}/convert",
@@ -297,7 +297,7 @@ class TestTransferToIncome:
         entry_id = transfer["id"]
 
         salary_id = await _get_account_id(client, test_book.id, "4001", auth_headers)
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
 
         resp = await client.post(
             f"/entries/{entry_id}/convert",
@@ -332,7 +332,7 @@ class TestIncomeToRepay:
         entry_id = income["id"]
 
         liability_id = await _get_account_id(client, test_book.id, "2101", auth_headers)
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
 
         resp = await client.post(
             f"/entries/{entry_id}/convert",
@@ -407,7 +407,7 @@ class TestDisallowedConversions:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """借入类型分录无转换路径 → 400"""
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
         liability_id = await _get_account_id(client, test_book.id, "2101", auth_headers)
 
         resp = await client.post(
@@ -452,7 +452,7 @@ class TestSyncEntryConvert:
         from sqlalchemy import select
         import uuid
 
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
 
         # 直接在数据库中创建一条 source=sync 的分录

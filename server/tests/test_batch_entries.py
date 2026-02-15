@@ -71,7 +71,7 @@ def _expense_item(accounts, idx=0, external_id=None):
         "entry_date": "2025-06-01",
         "amount": "50.00",
         "category_account_id": accounts["5001"],  # 餐饮
-        "payment_account_id": accounts["1001"],   # 现金
+        "payment_account_id": accounts["1001-01"],   # 现金
         "description": f"午餐 #{idx}",
     }
     if external_id:
@@ -86,7 +86,7 @@ def _income_item(accounts, idx=0, external_id=None):
         "entry_date": "2025-06-01",
         "amount": "8000.00",
         "category_account_id": accounts["4001"],  # 工资
-        "payment_account_id": accounts["1002"],   # 银行存款
+        "payment_account_id": accounts["1002-01"],   # 银行存款
         "description": f"工资 #{idx}",
     }
     if external_id:
@@ -100,8 +100,8 @@ def _transfer_item(accounts, idx=0, external_id=None):
         "entry_type": "transfer",
         "entry_date": "2025-06-01",
         "amount": "1000.00",
-        "from_account_id": accounts["1002"],  # 银行存款
-        "to_account_id": accounts["1001"],    # 现金
+        "from_account_id": accounts["1002-01"],  # 银行存款
+        "to_account_id": accounts["1001-01"],    # 现金
         "description": f"取现 #{idx}",
     }
     if external_id:
@@ -116,7 +116,7 @@ def _asset_purchase_item(accounts, idx=0, external_id=None):
         "entry_date": "2025-06-01",
         "amount": "3000.00",
         "asset_account_id": accounts["1201"],     # 短期投资
-        "payment_account_id": accounts["1002"],   # 银行存款
+        "payment_account_id": accounts["1002-01"],   # 银行存款
         "description": f"买基金 #{idx}",
     }
     if external_id:
@@ -130,7 +130,7 @@ def _borrow_item(accounts, idx=0, external_id=None):
         "entry_type": "borrow",
         "entry_date": "2025-06-01",
         "amount": "5000.00",
-        "payment_account_id": accounts["1002"],        # 银行存款
+        "payment_account_id": accounts["1002-01"],        # 银行存款
         "liability_account_id": accounts["2101"],      # 短期借款
         "description": f"借款 #{idx}",
     }
@@ -147,7 +147,7 @@ def _repay_item(accounts, idx=0, external_id=None):
         "principal": "1000.00",
         "interest": "50.00",
         "liability_account_id": accounts["2101"],      # 短期借款
-        "payment_account_id": accounts["1002"],        # 银行存款
+        "payment_account_id": accounts["1002-01"],        # 银行存款
         "category_account_id": accounts["5013"],       # 利息支出
         "description": f"还款 #{idx}",
     }
@@ -452,7 +452,7 @@ class TestBatchErrors:
                 "entry_date": "2025-06-01",
                 "amount": "100.00",
                 "category_account_id": str(uuid.uuid4()),  # 不存在的科目
-                "payment_account_id": accounts["1001"],
+                "payment_account_id": accounts["1001-01"],
             },
         ]
 
@@ -528,7 +528,7 @@ class TestBatchErrors:
             "entry_date": "2025-06-01",
             "lines": [
                 {"account_id": accounts["5001"], "debit_amount": "100", "credit_amount": "0"},
-                {"account_id": accounts["1001"], "debit_amount": "0", "credit_amount": "100"},
+                {"account_id": accounts["1001-01"], "debit_amount": "0", "credit_amount": "100"},
             ],
         }]
 

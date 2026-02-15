@@ -98,7 +98,7 @@ export default function ReconcileScreen() {
     }
   };
 
-  // 获取可选的科目列表（费用+收入科目）
+  // 获取可选的科目列表（费用+收入科目，仅叶子节点）
   const selectableAccounts = tree
     ? [
         ...(['expense', 'income', 'asset', 'liability'] as AccountType[]).flatMap((type) => {
@@ -106,7 +106,10 @@ export default function ReconcileScreen() {
           const flat: { id: string; name: string; code: string; type: AccountType }[] = [];
           const flatten = (ns: typeof nodes) => {
             for (const n of ns) {
-              flat.push({ id: n.id, name: n.name, code: n.code, type: type });
+              const isLeaf = n.is_leaf ?? (n.children.length === 0);
+              if (isLeaf) {
+                flat.push({ id: n.id, name: n.name, code: n.code, type: type });
+              }
               if (n.children.length > 0) flatten(n.children);
             }
           };

@@ -216,11 +216,11 @@ async def liability_account(test_book: Book) -> Account:
 
 @pytest_asyncio.fixture
 async def bank_account(test_book: Book) -> Account:
-    """获取工商银行科目 (1002)"""
+    """获取货币基金科目 (1002-01)"""
     async with TestSessionLocal() as db:
         from sqlalchemy import select
         result = await db.execute(
-            select(Account).where(Account.book_id == test_book.id, Account.code == "1002")
+            select(Account).where(Account.book_id == test_book.id, Account.code == "1002-01")
         )
         return result.scalar_one()
 

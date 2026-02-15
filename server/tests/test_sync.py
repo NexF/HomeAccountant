@@ -34,7 +34,7 @@ class TestSnapshot:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """余额一致 → difference=0, status=balanced"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         resp = await client.post(
             f"/accounts/{cash_id}/snapshot",
@@ -52,7 +52,7 @@ class TestSnapshot:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """余额有差异 → 自动生成调节分录"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         resp = await client.post(
             f"/accounts/{cash_id}/snapshot",
@@ -70,7 +70,7 @@ class TestSnapshot:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """指定快照日期"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         resp = await client.post(
             f"/accounts/{cash_id}/snapshot",
@@ -123,7 +123,7 @@ class TestPendingReconciliations:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """提交有差异的快照后 → count > 0"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         await client.post(
             f"/accounts/{cash_id}/snapshot",
@@ -145,7 +145,7 @@ class TestConfirmReconciliation:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """确认调节分录分类"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
         other_income_id = await _get_account_id(client, test_book.id, "4005", auth_headers)
 
         # 创建有差异的快照
@@ -187,7 +187,7 @@ class TestSplitReconciliation:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """拆分调节分录"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
         transport_id = await _get_account_id(client, test_book.id, "5002", auth_headers)
 

@@ -4,8 +4,8 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Platform,
-  Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
@@ -19,7 +19,7 @@ import {
   ACCOUNT_TYPE_ORDER,
   type AccountType,
 } from '@/stores/accountStore';
-import type { AccountTreeNode } from '@/services/accountService';
+import type { AccountTreeNode, CreateAccountParams } from '@/services/accountService';
 import { accountService } from '@/services/accountService';
 
 const TYPE_COLORS: Record<AccountType, string> = {
@@ -35,16 +35,24 @@ const DIRECTION_LABEL: Record<string, string> = {
   credit: '贷',
 };
 
+const DEFAULT_DIRECTION: Record<AccountType, 'debit' | 'credit'> = {
+  asset: 'debit',
+  liability: 'credit',
+  equity: 'credit',
+  income: 'credit',
+  expense: 'debit',
+};
+
 function AccountRow({
   node,
   depth,
   onPress,
-  onDeactivate,
+  onAdd,
 }: {
   node: AccountTreeNode;
   depth: number;
   onPress: (node: AccountTreeNode) => void;
-  onDeactivate: (node: AccountTreeNode) => void;
+  onAdd: (node: AccountTreeNode) => void;
 }) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
@@ -105,17 +113,15 @@ function AccountRow({
             {DIRECTION_LABEL[node.balance_direction]}
           </Text>
         </View>
-        {!node.is_system && (
-          <Pressable
-            style={styles.deleteBtn}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              onDeactivate(node);
-            }}
-          >
-            <FontAwesome name="trash-o" size={14} color={colors.textSecondary} />
-          </Pressable>
-        )}
+        <Pressable
+          style={styles.addBtn}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onAdd(node);
+          }}
+        >
+          <FontAwesome name="plus" size={13} color={Colors.primary} />
+        </Pressable>
       </Pressable>
       {expanded &&
         hasChildren &&
@@ -125,7 +131,7 @@ function AccountRow({
             node={child}
             depth={depth + 1}
             onPress={onPress}
-            onDeactivate={onDeactivate}
+            onAdd={onAdd}
           />
         ))}
     </>
@@ -139,6 +145,20 @@ export default function AccountsScreen() {
   const { currentBook, fetchBooks } = useBookStore();
   const { tree, isLoading, fetchTree } = useAccountStore();
   const [activeTab, setActiveTab] = useState<AccountType>('asset');
+
+  const [toastMsg, setToastMsg] = useState('');
+  const showToast = (title: string, message: string, duration = 3000) => {
+    setToastMsg(`${title}: ${message}`);
+    setTimeout(() => setToastMsg(''), duration);
+  };
+
+  // Modal 控制
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createParent, setCreateParent] = useState<AccountTreeNode | null>(null);
+  const [createName, setCreateName] = useState('');
+  const [createDirection, setCreateDirection] = useState<'debit' | 'credit'>('debit');
+  const [createIcon, setCreateIcon] = useState('');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchBooks();
@@ -154,29 +174,46 @@ export default function AccountsScreen() {
     router.push(`/accounts/${node.id}` as any);
   };
 
-  const handleDeactivate = async (node: AccountTreeNode) => {
-    const doDeactivate = async () => {
-      try {
-        await accountService.deactivateAccount(node.id);
-        if (currentBook) fetchTree(currentBook.id);
-      } catch {
-        if (Platform.OS === 'web') {
-          window.alert('停用失败');
-        } else {
-          Alert.alert('错误', '停用失败');
-        }
-      }
-    };
+  const handleAdd = (node: AccountTreeNode) => {
+    setCreateParent(node);
+    setCreateName('');
+    setCreateDirection(node.balance_direction);
+    setCreateIcon('');
+    setShowCreateModal(true);
+  };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm(`确定要停用「${node.name}」吗？`)) {
-        await doDeactivate();
+  const handleHeaderAdd = () => {
+    setCreateParent(null);
+    setCreateName('');
+    setCreateDirection(DEFAULT_DIRECTION[activeTab]);
+    setCreateIcon('');
+    setShowCreateModal(true);
+  };
+
+  const handleCreate = async () => {
+    if (!currentBook || !createName.trim()) return;
+    setCreating(true);
+    try {
+      const params: CreateAccountParams = {
+        name: createName.trim(),
+        type: createParent ? (createParent.type as CreateAccountParams['type']) : activeTab,
+        balance_direction: createParent ? createParent.balance_direction : createDirection,
+        ...(createParent ? { parent_id: createParent.id } : {}),
+        ...(createIcon.trim() ? { icon: createIcon.trim() } : {}),
+      };
+
+      const { data } = await accountService.createAccount(currentBook.id, params);
+      setShowCreateModal(false);
+      await fetchTree(currentBook.id);
+
+      if (data.migration?.triggered) {
+        showToast('分录已迁移', data.migration.message, 5000);
       }
-    } else {
-      Alert.alert('停用科目', `确定要停用「${node.name}」吗？`, [
-        { text: '取消', style: 'cancel' },
-        { text: '停用', style: 'destructive', onPress: doDeactivate },
-      ]);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || '创建失败';
+      showToast('错误', msg);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -198,7 +235,9 @@ export default function AccountsScreen() {
           <FontAwesome name="arrow-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>科目管理</Text>
-        <View style={{ width: 36 }} />
+        <Pressable onPress={handleHeaderAdd} style={styles.backBtn}>
+          <FontAwesome name="plus" size={18} color={Colors.primary} />
+        </Pressable>
       </View>
 
       {/* Tabs */}
@@ -259,14 +298,209 @@ export default function AccountsScreen() {
               node={node}
               depth={0}
               onPress={handlePress}
-              onDeactivate={handleDeactivate}
+              onAdd={handleAdd}
             />
           ))
         )}
       </ScrollView>
+
+      {/* 新增科目 Modal */}
+      <Modal visible={showCreateModal} transparent animationType="slide">
+        <Pressable
+          style={modalStyles.overlay}
+          onPress={() => setShowCreateModal(false)}
+        >
+          <Pressable
+            style={[modalStyles.content, { backgroundColor: colors.card }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[modalStyles.title, { color: colors.text }]}>
+              {createParent ? '新增子科目' : '新增科目'}
+            </Text>
+
+            {createParent && (
+              <View style={modalStyles.readonlyRow}>
+                <Text style={[modalStyles.label, { color: colors.textSecondary }]}>父科目</Text>
+                <View style={[modalStyles.readonlyBadge, { backgroundColor: Colors.primary + '15' }]}>
+                  <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '500' }}>
+                    {createParent.name}（{createParent.code}）
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={modalStyles.readonlyRow}>
+              <Text style={[modalStyles.label, { color: colors.textSecondary }]}>类型</Text>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>
+                {ACCOUNT_TYPE_LABELS[
+                  createParent ? (createParent.type as AccountType) : activeTab
+                ]}
+              </Text>
+            </View>
+
+            <View style={modalStyles.readonlyRow}>
+              <Text style={[modalStyles.label, { color: colors.textSecondary }]}>余额方向</Text>
+              {createParent ? (
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>
+                  {createParent.balance_direction === 'debit' ? '借方' : '贷方'}
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {(['debit', 'credit'] as const).map((dir) => (
+                    <Pressable
+                      key={dir}
+                      style={[
+                        modalStyles.chip,
+                        createDirection === dir && {
+                          backgroundColor: Colors.primary + '20',
+                          borderColor: Colors.primary,
+                        },
+                      ]}
+                      onPress={() => setCreateDirection(dir)}
+                    >
+                      <Text
+                        style={[
+                          modalStyles.chipText,
+                          { color: createDirection === dir ? Colors.primary : colors.textSecondary },
+                        ]}
+                      >
+                        {dir === 'debit' ? '借方' : '贷方'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={modalStyles.fieldRow}>
+              <Text style={[modalStyles.label, { color: colors.textSecondary }]}>名称</Text>
+              <TextInput
+                style={[modalStyles.input, { color: colors.text, borderColor: colors.border }]}
+                value={createName}
+                onChangeText={setCreateName}
+                placeholder="科目名称"
+                placeholderTextColor={colors.textSecondary}
+                autoFocus
+              />
+            </View>
+
+            <View style={modalStyles.fieldRow}>
+              <Text style={[modalStyles.label, { color: colors.textSecondary }]}>图标（可选）</Text>
+              <TextInput
+                style={[modalStyles.input, { color: colors.text, borderColor: colors.border }]}
+                value={createIcon}
+                onChangeText={setCreateIcon}
+                placeholder="FontAwesome 图标名"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            <View style={modalStyles.btnRow}>
+              <Pressable
+                style={[modalStyles.btn, { backgroundColor: colors.border }]}
+                onPress={() => setShowCreateModal(false)}
+              >
+                <Text style={{ color: colors.text, fontWeight: '600' }}>取消</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  modalStyles.btn,
+                  {
+                    backgroundColor:
+                      createName.trim() ? Colors.primary : colors.border,
+                  },
+                ]}
+                onPress={handleCreate}
+                disabled={!createName.trim() || creating}
+              >
+                {creating ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={{ color: '#FFF', fontWeight: '600' }}>创建</Text>
+                )}
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {toastMsg ? (
+        <View style={{ position: 'absolute', top: 16, left: 24, right: 24, backgroundColor: toastMsg.includes('失败') || toastMsg.includes('错误') ? '#EF4444' : Colors.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', zIndex: 999 }}>
+          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>{toastMsg}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    width: '85%',
+    maxWidth: 420,
+    borderRadius: 14,
+    padding: 24,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  readonlyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  readonlyBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  label: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  fieldRow: {
+    marginBottom: 12,
+  },
+  input: {
+    fontSize: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  btn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -367,7 +601,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  deleteBtn: {
+  addBtn: {
     width: 32,
     height: 32,
     alignItems: 'center',

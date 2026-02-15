@@ -47,7 +47,7 @@ class TestExpenseEntry:
     ):
         """记一笔费用：借 餐饮饮食(5001)，贷 现金(1001)"""
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -103,7 +103,7 @@ class TestIncomeEntry:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """记一笔收入：借 银行存款(1002)，贷 工资薪金(4001)"""
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
         salary_id = await _get_account_id(client, test_book.id, "4001", auth_headers)
 
         resp = await client.post(
@@ -139,8 +139,8 @@ class TestTransferEntry:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """转账：从现金到银行存款"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
 
         resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -173,7 +173,7 @@ class TestBorrowEntry:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """借入：借 银行存款(1002)，贷 短期借款(2101)"""
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
         loan_id = await _get_account_id(client, test_book.id, "2101", auth_headers)
 
         resp = await client.post(
@@ -204,7 +204,7 @@ class TestRepayEntry:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """还款：借 短期借款(本金) + 利息支出(利息)，贷 银行存款"""
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
         loan_id = await _get_account_id(client, test_book.id, "2101", auth_headers)
         interest_id = await _get_account_id(client, test_book.id, "5013", auth_headers)
 
@@ -243,7 +243,7 @@ class TestAssetPurchaseEntry:
     ):
         """购买资产：借 固定资产(1501)，贷 银行存款(1002)"""
         asset_acct_id = await _get_account_id(client, test_book.id, "1501", auth_headers)
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
 
         resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -273,7 +273,7 @@ class TestAssetPurchaseEntry:
     ):
         """贷款购买资产：借 固定资产，贷 银行存款 + 长期借款"""
         asset_acct_id = await _get_account_id(client, test_book.id, "1501", auth_headers)
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
         loan_id = await _get_account_id(client, test_book.id, "2201", auth_headers)
 
         resp = await client.post(
@@ -313,8 +313,8 @@ class TestManualEntry:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """手动分录：自行构建借贷行"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
 
         resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -337,7 +337,7 @@ class TestManualEntry:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """手动分录少于 2 行 → 400"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -367,7 +367,7 @@ class TestEntryCRUD:
         """分录列表（分页）"""
         # 先创建一条
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
         await client.post(
             f"/books/{test_book.id}/entries",
             json={
@@ -419,7 +419,7 @@ class TestEntryCRUD:
     ):
         """分录详情含 lines"""
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
         create_resp = await client.post(
             f"/books/{test_book.id}/entries",
             json={
@@ -453,7 +453,7 @@ class TestEntryCRUD:
     ):
         """编辑分录元数据"""
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
         create_resp = await client.post(
             f"/books/{test_book.id}/entries",
             json={
@@ -483,7 +483,7 @@ class TestEntryCRUD:
     ):
         """删除分录 → 204"""
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
         create_resp = await client.post(
             f"/books/{test_book.id}/entries",
             json={
@@ -535,9 +535,9 @@ class TestEntryFullEdit:
     ):
         """编辑费用分录：改科目+金额，旧 lines 删除，新 lines 生成"""
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
         transport_id = await _get_account_id(client, test_book.id, "5002", auth_headers)
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
 
         # 创建原始分录
         create_resp = await client.post(
@@ -596,8 +596,8 @@ class TestEntryFullEdit:
     ):
         """编辑收入分录"""
         salary_id = await _get_account_id(client, test_book.id, "4001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
 
         create_resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -633,8 +633,8 @@ class TestEntryFullEdit:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """编辑转账分录"""
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
-        bank_id = await _get_account_id(client, test_book.id, "1002", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
 
         create_resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -671,7 +671,7 @@ class TestEntryFullEdit:
     ):
         """仅更新元数据（兼容旧行为），lines 不变"""
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         create_resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -707,7 +707,7 @@ class TestEntryFullEdit:
     ):
         """传入不存在的科目 ID → 404"""
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         create_resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -739,7 +739,7 @@ class TestEntryFullEdit:
     ):
         """编辑后分录 ID 和 created_at 不变，updated_at 更新"""
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         create_resp = await client.post(
             f"/books/{test_book.id}/entries",
@@ -776,7 +776,7 @@ class TestEntryFullEdit:
     ):
         """分录详情 API 返回 account_type 字段"""
         food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
-        cash_id = await _get_account_id(client, test_book.id, "1001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
 
         create_resp = await client.post(
             f"/books/{test_book.id}/entries",

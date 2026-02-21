@@ -64,10 +64,8 @@ CASH_SUB_ACCOUNTS: list[tuple[str, str, str]] = [
 
 # 存款的三级子科目 (1001-02 下)
 DEPOSIT_SUB_ACCOUNTS: list[tuple[str, str, str]] = [
-    ("1001-0201", "工商银行", "bank-icbc"),
-    ("1001-0202", "招商银行", "bank-cmb"),
-    ("1001-0203", "支付宝", "alipay"),
-    ("1001-0204", "微信钱包", "wechat-pay"),
+    ("1001-0201", "支付宝", "alipay"),
+    ("1001-0202", "微信钱包", "wechat-pay"),
 ]
 
 # 现金等价物子科目 (1002 下)
@@ -78,9 +76,6 @@ CASH_EQUIV_SUB_ACCOUNTS: list[tuple[str, str, str]] = [
 
 # 信用卡子科目
 CREDIT_CARD_SUB_ACCOUNTS: list[tuple[str, str, str]] = [
-    ("2001-01", "招行信用卡", "credit-card-cmb"),
-    ("2001-02", "花呗", "huabei"),
-    ("2001-03", "白条", "baitiao"),
 ]
 
 

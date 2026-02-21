@@ -294,8 +294,8 @@ export default function AccountDetailScreen() {
           )}
         </Pressable>
 
-        {/* 更新真实余额（仅资产/负债科目显示） */}
-        {isBalanceAccount && (
+        {/* 更新真实余额（仅叶子科目显示） */}
+        {isBalanceAccount && account.children.length === 0 && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
               对账

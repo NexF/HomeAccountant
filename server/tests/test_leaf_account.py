@@ -507,9 +507,9 @@ class TestAccountDeleteProtection:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """停用有活跃子科目的科目 → 拒绝"""
-        parent = await _get_account_by_code(test_book.id, "2001")
+        parent = await _get_account_by_code(test_book.id, "1001")
 
-        # 2001 信用卡有子科目
+        # 1001 货币资金有子科目
         del_resp = await client.delete(
             f"/accounts/{parent.id}", headers=auth_headers
         )
@@ -572,7 +572,7 @@ class TestAccountTreeIsLeaf:
     async def test_deep_nested_is_leaf(
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
-        """三级嵌套：1001 > 1001-02 存款 > 1001-0201 工商银行"""
+        """三级嵌套：1001 > 1001-02 存款 > 1001-0201 支付宝"""
         resp = await client.get(
             f"/books/{test_book.id}/accounts", headers=auth_headers
         )
@@ -584,8 +584,8 @@ class TestAccountTreeIsLeaf:
         deposit = next(c for c in cash["children"] if c["code"] == "1001-02")
         assert deposit["is_leaf"] is False
 
-        icbc = next(c for c in deposit["children"] if c["code"] == "1001-0201")
-        assert icbc["is_leaf"] is True
+        alipay = next(c for c in deposit["children"] if c["code"] == "1001-0201")
+        assert alipay["is_leaf"] is True
 
     @pytest.mark.asyncio
     async def test_is_leaf_updates_after_adding_child(

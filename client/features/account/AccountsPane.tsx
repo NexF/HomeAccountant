@@ -369,7 +369,7 @@ function AccountDetailInline({
           {saving ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.saveBtnText}>保存修改</Text>}
         </Pressable>
 
-        {isBalanceAccount && (
+        {isBalanceAccount && account.children.length === 0 && (
           <>
             <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
               对账

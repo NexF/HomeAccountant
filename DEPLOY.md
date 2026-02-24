@@ -69,9 +69,10 @@ python3 -c "import secrets; print(secrets.token_urlsafe(64))"
 ```bash
 cd client
 npx expo export --platform web
+cp -r dist/* /var/www/accountant/
 ```
 
-输出目录 `client/dist/`，部署到 `accountant.nex.cab` 对应的静态托管即可。
+构建产物输出到 `client/dist/`，需同步到 Nginx 静态目录 `/var/www/accountant/`。
 
 ## Nginx 参考配置
 

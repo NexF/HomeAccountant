@@ -6,8 +6,8 @@ const getBaseURL = () => {
     if (Platform.OS === 'android') return 'http://10.0.2.2:8000';
     return 'http://localhost:8000';
   }
-  // 生产环境：改成你的服务器地址
-  return 'https://accountant.nex.cab:8000';
+  // 生产环境
+  return 'https://accapi.nex.cab';
 };
 
 const api = axios.create({

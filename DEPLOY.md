@@ -1,20 +1,31 @@
-# 服务端部署指南
+# 部署指南
 
-## Docker Compose（推荐）
+## 架构
+
+```
+前端 (accountant.nex.cab)  ──HTTPS──→  Nginx / 静态托管
+后端 (accapi.nex.cab)      ──HTTPS──→  Nginx ──反代──→ Docker 容器 (:8000)
+```
+
+前后端独立域名，通过 CORS 通信。
+
+## 后端部署
+
+### Docker Compose（推荐）
 
 ```bash
 cd server/docker
 docker compose up -d --build
 ```
 
-## 手动构建镜像
+### 手动构建镜像
 
 ```bash
 cd server
 docker build -t home-accountant-server -f docker/Dockerfile .
 ```
 
-## 手动运行容器
+### 手动运行容器
 
 ```bash
 # 生成 JWT 密钥
@@ -25,13 +36,20 @@ docker run -d \
   -p 8000:8000 \
   -v $(pwd)/data:/app/data \
   -e JWT_SECRET_KEY="$JWT_SECRET" \
-  -e CORS_ORIGINS='["https://你的前端域名"]' \
+  -e CORS_ORIGINS='["https://accountant.nex.cab"]' \
   --restart unless-stopped \
   --name home-accountant \
   home-accountant-server
 ```
 
 ## 环境变量
+
+在 `server/docker/.env` 中配置：
+
+```env
+JWT_SECRET_KEY=你的随机密钥
+CORS_ORIGINS=["https://accountant.nex.cab"]
+```
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
@@ -40,12 +58,68 @@ docker run -d \
 | `DATABASE_DIR` | SQLite 数据库存放目录 | `/app/data` |
 | `DEBUG` | 调试模式 | `false` |
 
+生成密钥：
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+## 前端构建
+
+```bash
+cd client
+npx expo export --platform web
+```
+
+输出目录 `client/dist/`，部署到 `accountant.nex.cab` 对应的静态托管即可。
+
+## Nginx 参考配置
+
+### 后端（accapi.nex.cab）
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name accapi.nex.cab;
+
+    ssl_certificate     /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### 前端（accountant.nex.cab）
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name accountant.nex.cab;
+
+    ssl_certificate     /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    root /path/to/client/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
 ## 数据持久化
 
-SQLite 数据库存储在容器内 `/app/data` 目录，务必通过 `-v` 挂载宿主机目录，否则容器删除后数据丢失。
+SQLite 数据库通过 volume 挂载到 `server/data/`，容器删除后数据不丢失。
 
 ## 健康检查
 
 ```bash
-curl http://localhost:8000/health
+curl https://accapi.nex.cab/health
 ```

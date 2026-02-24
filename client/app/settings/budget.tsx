@@ -33,6 +33,7 @@ export default function BudgetSettingsScreen() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { isDesktop } = useBreakpoint();
 
   const [loading, setLoading] = useState(true);
@@ -178,17 +179,19 @@ export default function BudgetSettingsScreen() {
         {!totalBudget && (
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>月度总预算</Text>
-            <Pressable onPress={() => openCreateModal(true)}>
-              <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '600' }}>+ 设置</Text>
-            </Pressable>
+            {isAdmin && (
+              <Pressable onPress={() => openCreateModal(true)}>
+                <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '600' }}>+ 设置</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
         {totalBudget ? (
           <Pressable
             style={[styles.totalCard, { backgroundColor: colors.card }]}
-            onPress={() => openEditModal(totalBudget)}
-            onLongPress={() => setDeleteTarget(totalBudget)}
+            onPress={isAdmin ? () => openEditModal(totalBudget) : undefined}
+            onLongPress={isAdmin ? () => setDeleteTarget(totalBudget) : undefined}
           >
             <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 10 }}>
               月度总预算
@@ -234,9 +237,11 @@ export default function BudgetSettingsScreen() {
         {/* 分类预算 */}
         <View style={[styles.sectionHeader, { marginTop: 20 }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>分类预算</Text>
-          <Pressable onPress={() => openCreateModal(false)}>
-            <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '600' }}>+ 添加</Text>
-          </Pressable>
+          {isAdmin && (
+            <Pressable onPress={() => openCreateModal(false)}>
+              <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '600' }}>+ 添加</Text>
+            </Pressable>
+          )}
         </View>
 
         {categoryBudgets.length === 0 ? (
@@ -250,8 +255,8 @@ export default function BudgetSettingsScreen() {
             <BudgetCard
               key={b.id}
               budget={b}
-              onPress={() => openEditModal(b)}
-              onLongPress={() => setDeleteTarget(b)}
+              onPress={isAdmin ? () => openEditModal(b) : undefined}
+              onLongPress={isAdmin ? () => setDeleteTarget(b) : undefined}
             />
           ))
         )}

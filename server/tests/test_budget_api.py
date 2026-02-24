@@ -7,12 +7,14 @@
 - DELETE /budgets/{id} — 删除
 - GET /books/{book_id}/budgets/overview — 总览
 - POST /books/{book_id}/budgets/check — 预算检查
+- 权限校验：member 不可执行写操作
 """
 
 import pytest
 
 from app.models.book import Book
 from app.models.account import Account
+from app.models.user import User
 
 
 # ──────────── fixtures ────────────
@@ -283,3 +285,64 @@ class TestBudgetOverviewAndCheck:
         data = resp.json()
         assert data["triggered"] is True
         assert data["alerts"][0]["alert_type"] == "exceeded"
+
+
+# ──────────── 权限校验：member 不可执行写操作 ────────────
+
+
+class TestBudgetAdminPermission:
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_create_budget(
+        self, client, member_headers, book_with_member: Book
+    ):
+        """member 不可新建预算 → 403"""
+        resp = await client.post(
+            f"/books/{book_with_member.id}/budgets",
+            json={"amount": 10000},
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_update_budget(
+        self, client, auth_headers, member_headers,
+        test_book: Book, book_with_member: Book,
+    ):
+        """member 不可更新预算 → 403"""
+        # admin 先创建预算
+        create_resp = await client.post(
+            f"/books/{test_book.id}/budgets",
+            json={"amount": 5000},
+            headers=auth_headers,
+        )
+        budget_id = create_resp.json()["id"]
+
+        # member 试图更新
+        resp = await client.put(
+            f"/budgets/{budget_id}",
+            json={"amount": 8000},
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_delete_budget(
+        self, client, auth_headers, member_headers,
+        test_book: Book, book_with_member: Book,
+    ):
+        """member 不可删除预算 → 403"""
+        # admin 先创建预算
+        create_resp = await client.post(
+            f"/books/{test_book.id}/budgets",
+            json={"amount": 5000},
+            headers=auth_headers,
+        )
+        budget_id = create_resp.json()["id"]
+
+        # member 试图删除
+        resp = await client.delete(
+            f"/budgets/{budget_id}",
+            headers=member_headers,
+        )
+        assert resp.status_code == 403

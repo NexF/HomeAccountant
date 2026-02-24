@@ -31,3 +31,48 @@ async def get_current_user(
         raise credentials_exception
 
     return user
+
+
+# ──────────── 账本权限依赖 ────────────
+
+
+async def get_book_member_role(
+    book_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    """获取当前用户在指定账本中的角色，非成员抛 403"""
+    from app.services.book_service import get_member_role
+
+    role = await get_member_role(db, current_user.id, book_id)
+    if role is None:
+        raise HTTPException(status_code=403, detail="无权访问该账本")
+    return role
+
+
+async def require_book_admin(
+    book_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """要求当前用户是指定账本的 admin"""
+    from app.services.book_service import get_member_role
+
+    role = await get_member_role(db, current_user.id, book_id)
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return current_user
+
+
+async def require_book_member(
+    book_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """要求当前用户是指定账本的成员"""
+    from app.services.book_service import get_member_role
+
+    role = await get_member_role(db, current_user.id, book_id)
+    if role is None:
+        raise HTTPException(status_code=403, detail="无权访问该账本")
+    return current_user

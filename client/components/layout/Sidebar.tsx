@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter, usePathname } from 'expo-router';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { BookSwitcher, CreateBookModal } from '@/features/book';
+import { useBookStore } from '@/stores/bookStore';
+import { useProfileNavStore } from '@/stores/profileNavStore';
+import type { BookResponse } from '@/services/bookService';
 
 type NavItem = {
   key: string;
@@ -25,6 +29,9 @@ export default function Sidebar() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const pathname = usePathname();
+  const [showCreateBookModal, setShowCreateBookModal] = useState(false);
+  const { setCurrentBook } = useBookStore();
+  const navigateTo = useProfileNavStore((s) => s.navigateTo);
 
   const isActive = (item: NavItem) => {
     if (item.key === 'index') return pathname === '/' || pathname === '/(tabs)';
@@ -46,6 +53,24 @@ export default function Sidebar() {
         <FontAwesome name="calculator" size={24} color={Colors.primary} />
         <Text style={[styles.logoText, { color: colors.text }]}>家庭记账</Text>
       </View>
+
+      {/* 账本切换器 */}
+      <BookSwitcher
+        onCreateBook={() => setShowCreateBookModal(true)}
+        onOpenSettings={() => {
+          navigateTo('book-settings');
+          router.push('/(tabs)/profile' as any);
+        }}
+      />
+
+      {/* 创建账本 Modal */}
+      <CreateBookModal
+        visible={showCreateBookModal}
+        onClose={() => setShowCreateBookModal(false)}
+        onCreated={(book: BookResponse) => {
+          setCurrentBook(book);
+        }}
+      />
 
       {/* Nav Items */}
       <View style={styles.navList}>

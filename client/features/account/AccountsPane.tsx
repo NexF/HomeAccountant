@@ -41,11 +41,13 @@ function AccountRow({
   depth,
   onPress,
   onAdd,
+  isAdmin,
 }: {
   node: AccountTreeNode;
   depth: number;
   onPress: (node: AccountTreeNode) => void;
   onAdd: (node: AccountTreeNode) => void;
+  isAdmin: boolean;
 }) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
@@ -105,15 +107,17 @@ function AccountRow({
             {DIRECTION_LABEL[node.balance_direction]}
           </Text>
         </View>
-        <Pressable
-          style={styles.deleteBtn}
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onAdd(node);
-          }}
-        >
-          <FontAwesome name="plus" size={13} color={Colors.primary} />
-        </Pressable>
+        {isAdmin && (
+          <Pressable
+            style={styles.deleteBtn}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onAdd(node);
+            }}
+          >
+            <FontAwesome name="plus" size={13} color={Colors.primary} />
+          </Pressable>
+        )}
       </Pressable>
       {expanded &&
         hasChildren &&
@@ -124,6 +128,7 @@ function AccountRow({
             depth={depth + 1}
             onPress={onPress}
             onAdd={onAdd}
+            isAdmin={isAdmin}
           />
         ))}
     </>
@@ -141,6 +146,7 @@ function AccountDetailInline({
   const colors = Colors[colorScheme];
   const { tree, fetchTree } = useAccountStore();
   const { currentBook } = useBookStore();
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
 
   const [account, setAccount] = useState<AccountTreeNode | null>(null);
   const [name, setName] = useState('');
@@ -361,13 +367,15 @@ function AccountDetailInline({
           </View>
         </View>
 
-        <Pressable
-          style={[styles.saveBtn, { backgroundColor: dirty ? Colors.primary : colors.border, marginBottom: 24 }]}
-          onPress={handleSave}
-          disabled={!dirty || saving}
-        >
-          {saving ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.saveBtnText}>保存修改</Text>}
-        </Pressable>
+        {isAdmin && (
+          <Pressable
+            style={[styles.saveBtn, { backgroundColor: dirty ? Colors.primary : colors.border, marginBottom: 24 }]}
+            onPress={handleSave}
+            disabled={!dirty || saving}
+          >
+            {saving ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.saveBtnText}>保存修改</Text>}
+          </Pressable>
+        )}
 
         {isBalanceAccount && account.children.length === 0 && (
           <>
@@ -408,12 +416,14 @@ function AccountDetailInline({
               ? `子科目（${account.children.length}）`
               : '新增子科目'}
           </Text>
-          <Pressable
-            style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
-            onPress={handleAddChild}
-          >
-            <FontAwesome name="plus" size={13} color={Colors.primary} />
-          </Pressable>
+          {isAdmin && (
+            <Pressable
+              style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+              onPress={handleAddChild}
+            >
+              <FontAwesome name="plus" size={13} color={Colors.primary} />
+            </Pressable>
+          )}
         </View>
         <View style={[styles.formCard, { backgroundColor: colors.card, marginBottom: 16 }]}>
           {account.children.length > 0 ? (
@@ -438,8 +448,8 @@ function AccountDetailInline({
           )}
         </View>
 
-        {/* 停用科目按钮 — 仅非系统科目显示 */}
-        {!account.is_system && (
+        {/* 停用科目按钮 — 仅非系统科目且管理员显示 */}
+        {isAdmin && !account.is_system && (
           <Pressable
             style={{
               height: 44,
@@ -564,6 +574,7 @@ export default function AccountsPane() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const { currentBook, fetchBooks } = useBookStore();
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { tree, isLoading, fetchTree } = useAccountStore();
   const [activeTab, setActiveTab] = useState<AccountType>('asset');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -662,12 +673,14 @@ export default function AccountsPane() {
     <View style={{ flex: 1 }}>
       <View style={[styles.detailContent, { paddingBottom: 10, backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <Text style={[styles.detailTitle, { color: colors.text, marginBottom: 0 }]}>科目管理</Text>
-        <Pressable
-          onPress={handleHeaderAdd}
-          style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <FontAwesome name="plus" size={18} color={Colors.primary} />
-        </Pressable>
+        {isAdmin && (
+          <Pressable
+            onPress={handleHeaderAdd}
+            style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <FontAwesome name="plus" size={18} color={Colors.primary} />
+          </Pressable>
+        )}
       </View>
 
       <ScrollView
@@ -727,6 +740,7 @@ export default function AccountsPane() {
               depth={0}
               onPress={handlePress}
               onAdd={handleAdd}
+              isAdmin={isAdmin}
             />
           ))
         )}

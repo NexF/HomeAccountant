@@ -122,6 +122,40 @@ async def test_book(test_user: User) -> Book:
 
 
 @pytest_asyncio.fixture
+async def family_book(test_user: User) -> Book:
+    """家庭账本（可邀请成员）"""
+    async with TestSessionLocal() as db:
+        book = Book(
+            id=str(uuid.uuid4()),
+            name="家庭账本",
+            type="family",
+            owner_id=test_user.id,
+        )
+        db.add(book)
+        await db.flush()
+
+        member = BookMember(
+            book_id=book.id, user_id=test_user.id, role="admin"
+        )
+        db.add(member)
+
+        await seed_accounts_for_book(db, book.id)
+        await db.commit()
+        await db.refresh(book)
+        return book
+
+
+@pytest_asyncio.fixture
+async def family_book_with_member(family_book: Book, member_user: User) -> Book:
+    """给 family_book 加入 member_user 作为 member 角色"""
+    async with TestSessionLocal() as db:
+        m = BookMember(book_id=family_book.id, user_id=member_user.id, role="member")
+        db.add(m)
+        await db.commit()
+    return family_book
+
+
+@pytest_asyncio.fixture
 async def fixed_asset_account(test_book: Book) -> Account:
     """获取固定资产科目 (1501)"""
     async with TestSessionLocal() as db:
@@ -234,6 +268,40 @@ async def interest_expense_account(test_book: Book) -> Account:
             select(Account).where(Account.book_id == test_book.id, Account.code == "5013")
         )
         return result.scalar_one()
+
+
+# ──────────── member 用户 + 权限 fixture ────────────
+
+@pytest_asyncio.fixture
+async def member_user() -> User:
+    """第二个用户，用于 member 角色权限测试"""
+    async with TestSessionLocal() as db:
+        user = User(
+            id=str(uuid.uuid4()),
+            email="member@example.com",
+            password_hash=hash_password("password123"),
+            nickname="普通成员",
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user
+
+
+@pytest_asyncio.fixture
+async def member_headers(member_user: User) -> dict:
+    token = create_access_token(member_user.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def book_with_member(test_book: Book, member_user: User) -> Book:
+    """给 test_book 加入 member_user 作为 member 角色"""
+    async with TestSessionLocal() as db:
+        m = BookMember(book_id=test_book.id, user_id=member_user.id, role="member")
+        db.add(m)
+        await db.commit()
+    return test_book
 
 
 @pytest_asyncio.fixture

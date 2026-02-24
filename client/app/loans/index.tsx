@@ -119,6 +119,7 @@ export default function LoanListScreen() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { loans, summary, isLoading, filterStatus, fetchLoans, fetchSummary, setFilterStatus } =
     useLoanStore();
   const { isDesktop } = useBreakpoint();
@@ -154,12 +155,16 @@ export default function LoanListScreen() {
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>贷款管理</Text>
-        <Pressable
-          style={[styles.addBtn, { backgroundColor: Colors.primary }]}
-          onPress={() => router.push('/loans/new' as any)}
-        >
-          <FontAwesome name="plus" size={14} color="#FFF" />
-        </Pressable>
+        {isAdmin ? (
+          <Pressable
+            style={[styles.addBtn, { backgroundColor: Colors.primary }]}
+            onPress={() => router.push('/loans/new' as any)}
+          >
+            <FontAwesome name="plus" size={14} color="#FFF" />
+          </Pressable>
+        ) : (
+          <View style={styles.headerBtn} />
+        )}
       </View>
 
       {/* Summary */}
@@ -230,12 +235,14 @@ export default function LoanListScreen() {
         <View style={styles.center}>
           <FontAwesome name="credit-card" size={48} color={colors.textSecondary} />
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>暂无贷款</Text>
-          <Pressable
-            style={[styles.emptyBtn, { borderColor: Colors.primary }]}
-            onPress={() => router.push('/loans/new' as any)}
-          >
-            <Text style={{ color: Colors.primary, fontWeight: '600' }}>新建贷款</Text>
-          </Pressable>
+          {isAdmin && (
+            <Pressable
+              style={[styles.emptyBtn, { borderColor: Colors.primary }]}
+              onPress={() => router.push('/loans/new' as any)}
+            >
+              <Text style={{ color: Colors.primary, fontWeight: '600' }}>新建贷款</Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         <ScrollView

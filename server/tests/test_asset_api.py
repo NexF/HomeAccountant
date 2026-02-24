@@ -484,3 +484,86 @@ class TestAuth:
             headers={"Authorization": "Bearer invalid-token"},
         )
         assert resp.status_code == 401
+
+
+# ═══════════════════════════════════════════
+# 权限校验：member 不可执行写操作
+# ═══════════════════════════════════════════
+
+
+class TestAssetAdminPermission:
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_create_asset(
+        self, client: AsyncClient, member_headers,
+        book_with_member: Book, fixed_asset_account: Account,
+    ):
+        """member 不可新建资产 → 403"""
+        payload = {
+            "name": "测试资产",
+            "account_id": fixed_asset_account.id,
+            "purchase_date": "2025-01-01",
+            "original_cost": 5000,
+            "useful_life_months": 36,
+        }
+        resp = await client.post(
+            f"/books/{book_with_member.id}/assets",
+            json=payload,
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_update_asset(
+        self, client: AsyncClient, member_headers,
+        sample_asset: FixedAsset, book_with_member: Book,
+    ):
+        """member 不可更新资产 → 403"""
+        resp = await client.put(
+            f"/assets/{sample_asset.id}",
+            json={"name": "试图修改"},
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_delete_asset(
+        self, client: AsyncClient, member_headers,
+        sample_asset: FixedAsset, book_with_member: Book,
+    ):
+        """member 不可删除资产 → 403"""
+        resp = await client.delete(
+            f"/assets/{sample_asset.id}",
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_depreciate_asset(
+        self, client: AsyncClient, member_headers,
+        sample_asset: FixedAsset, book_with_member: Book,
+    ):
+        """member 不可手动折旧 → 403"""
+        resp = await client.post(
+            f"/assets/{sample_asset.id}/depreciate?period=2025-01",
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_dispose_asset(
+        self, client: AsyncClient, member_headers,
+        sample_asset: FixedAsset, income_account: Account, book_with_member: Book,
+    ):
+        """member 不可处置资产 → 403"""
+        payload = {
+            "disposal_income": 6000,
+            "disposal_date": "2026-06-01",
+            "income_account_id": income_account.id,
+        }
+        resp = await client.post(
+            f"/assets/{sample_asset.id}/dispose",
+            json=payload,
+            headers=member_headers,
+        )
+        assert resp.status_code == 403

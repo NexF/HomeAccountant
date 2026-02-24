@@ -499,6 +499,13 @@ export default function LedgerScreen() {
     doFetch();
   }, [filterType]);
 
+  // 切换账本后刷新数据
+  useEffect(() => {
+    if (currentBook) {
+      doFetch();
+    }
+  }, [currentBook?.id]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await doFetch();

@@ -18,8 +18,8 @@ from app.services.budget_service import (
     get_overview,
     check_budget_after_expense,
 )
-from app.services.book_service import user_has_book_access
-from app.utils.deps import get_current_user
+from app.services.book_service import user_has_book_access, require_admin
+from app.utils.deps import get_current_user, require_book_admin
 
 router = APIRouter(tags=["预算"])
 
@@ -68,17 +68,15 @@ async def get_budget(
     return await get_budget_with_usage(db, budget)
 
 
-# ───── 新建预算 ─────
+# ───── 新建预算（admin-only）─────
 
 @router.post("/books/{book_id}/budgets", response_model=BudgetResponse, status_code=201)
 async def create_budget(
     book_id: str,
     body: BudgetCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_book_admin),
 ):
-    await _check_book(user.id, book_id, db)
-
     # 检查是否已存在同科目的预算
     stmt = select(Budget).where(
         Budget.book_id == book_id,
@@ -109,7 +107,7 @@ async def create_budget(
     return await get_budget_with_usage(db, budget)
 
 
-# ───── 更新预算 ─────
+# ───── 更新预算（admin-only）─────
 
 @router.put("/budgets/{budget_id}", response_model=BudgetResponse)
 async def update_budget(
@@ -126,7 +124,7 @@ async def update_budget(
     budget = result.scalar_one_or_none()
     if not budget:
         raise HTTPException(status_code=404, detail="预算不存在")
-    await _check_book(user.id, budget.book_id, db)
+    await require_admin(db, user.id, budget.book_id)
 
     if body.amount is not None:
         budget.amount = body.amount
@@ -146,7 +144,7 @@ async def update_budget(
     return await get_budget_with_usage(db, budget)
 
 
-# ───── 删除预算 ─────
+# ───── 删除预算（admin-only）─────
 
 @router.delete("/budgets/{budget_id}", status_code=204)
 async def delete_budget(
@@ -158,7 +156,7 @@ async def delete_budget(
     budget = result.scalar_one_or_none()
     if not budget:
         raise HTTPException(status_code=404, detail="预算不存在")
-    await _check_book(user.id, budget.book_id, db)
+    await require_admin(db, user.id, budget.book_id)
     await db.delete(budget)
 
 

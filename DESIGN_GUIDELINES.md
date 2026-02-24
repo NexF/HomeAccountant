@@ -158,19 +158,11 @@ function LoansPane() {
 
 **原因：** Expo Router 的 Tab 页面在切换后不会被卸载，组件内的 `useState` 状态会被保留。如果不主动重置，用户从"我的→固定资产"切换到"总览"再切回"我的"时，右侧面板仍停留在"固定资产"，而非初始的空状态。
 
-**实现方式：** 在 `useFocusEffect` 中重置右侧面板的选中状态：
+**实现方式：**
+
+1. **普通页面**（无跨 Tab 跳转需求）：在 `useFocusEffect` 中直接重置状态：
 
 ```typescript
-// profile.tsx — 重置详情面板
-useFocusEffect(
-  useCallback(() => {
-    const pane = consumePendingPane(); // 消费来自其他 tab 的跳转指令
-    if (isDesktop) {
-      setActiveDetail(pane ? (pane as DetailPane) : 'none');
-    }
-  }, [consumePendingPane, isDesktop])
-);
-
 // ledger.tsx — 重置选中分录
 useFocusEffect(
   useCallback(() => {
@@ -180,11 +172,69 @@ useFocusEffect(
 );
 ```
 
+2. **带跨 Tab 跳转的页面**（如 `profile.tsx`，Sidebar 可指定打开的面板）：
+
+   需同时处理两个场景：① 普通 tab 切换时重置；② 通过 store 指定面板跳转时打开对应面板。
+
+   **关键问题：** Expo Router 的 Tab 页面不会卸载，React `useEffect` 在后台页面也会触发。如果用 `useEffect` 监听 store 变化，会导致后台页面提前消费掉 `pendingPane`，前台 `useFocusEffect` 触发时已经丢失。
+
+   **正确模式：**
+   - 用 `useFocusEffect` + `focusedRef` 追踪聚焦状态
+   - 用 `zustand.subscribe`（非 React `useEffect`）处理"已在当前 tab 时"的 store 变化
+   - `subscribe` 回调中通过 `focusedRef.current` 守卫，确保只在聚焦时响应
+
+```typescript
+// profile.tsx
+const focusedRef = useRef(false);
+
+// Tab 聚焦/失焦追踪 + 面板重置/恢复
+useFocusEffect(
+  useCallback(() => {
+    focusedRef.current = true;
+    if (isDesktop) {
+      const pane = useProfileNavStore.getState().pendingPane;
+      if (pane) {
+        useProfileNavStore.getState().consume();
+        setActiveDetail(pane as DetailPane);
+      } else {
+        setActiveDetail('none');
+      }
+    }
+    return () => { focusedRef.current = false; };
+  }, [isDesktop])
+);
+
+// 已在 profile 页面时，响应 Sidebar 的 navigateTo
+useEffect(() => {
+  if (!isDesktop) return;
+  const unsub = useProfileNavStore.subscribe((state) => {
+    if (focusedRef.current && state.pendingPane) {
+      const pane = useProfileNavStore.getState().consume();
+      if (pane) setActiveDetail(pane as DetailPane);
+    }
+  });
+  return unsub;
+}, [isDesktop]);
+```
+
+**反模式（禁止）：**
+
+```typescript
+// ❌ useEffect 监听 pendingPane — 后台页面也会触发，导致提前消费
+useEffect(() => {
+  if (pendingPane) {
+    consumePendingPane();
+    setActiveDetail(pendingPane as DetailPane);
+  }
+}, [pendingPane]);
+```
+
 **规则：**
 
-- 如果有 `pendingPane`（来自其他 Tab 的定向跳转，如 Dashboard 点击"预算"），则打开对应面板
+- 如果有 `pendingPane`（来自其他 Tab 的定向跳转，如 Sidebar 点击"账本设置"），则打开对应面板
 - 如果没有 `pendingPane`（用户直接点导航栏切换），则重置为默认空状态
 - 所有带桌面端分栏布局的页面均需遵守此规范
+- 跨 Tab 跳转场景必须使用 `zustand.subscribe` + `focusedRef` 模式，禁止用 React `useEffect` 监听 store 状态
 
 **已应用此规范的页面：** `profile.tsx`、`ledger.tsx`
 
@@ -211,3 +261,74 @@ useFocusEffect(
 **实现方式：** 在 StyleSheet 中使用固定值 `width: '85%'` + `maxWidth: 420` 即可同时覆盖移动端和桌面端，无需动态判断。
 
 **已应用此规范的弹窗：** API Key 创建/成功/删除、插件删除、预算编辑、账本页删除确认。
+
+## 11. 移动端页面独立实现规范
+
+移动端路由页面（`app/` 目录下的 `.tsx` 文件）必须是**独立实现的完整页面**，不得简单地包裹桌面端 Pane 组件作为"路由壳"。
+
+**反面示例（禁止）：**
+
+```typescript
+// ❌ settings/book.tsx — 仅做 Pane 壳
+export default function BookSettingsScreen() {
+  const router = useRouter();
+  return (
+    <BookSettingsPane
+      onBack={() => router.back()}
+      onBookDeleted={() => router.replace('/(tabs)' as any)}
+    />
+  );
+}
+```
+
+**原因：**
+
+- Pane 组件的 Header 样式（自定义 `s.header`）与移动端其他页面不统一
+- Pane 依赖 `onBack` 等回调来控制导航，与移动端 `useRouter()` 直接控制路由的模式不一致
+- 移动端和桌面端的布局需求不同（如 `paddingTop` 安全区、Header 三列布局等），复用同一组件容易导致样式冲突
+
+**正面示例：**
+
+```typescript
+// ✅ settings/book.tsx — 独立实现，与其他移动端页面风格统一
+export default function BookSettingsScreen() {
+  const router = useRouter();
+  const colors = Colors[useColorScheme() ?? 'light'];
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.headerBtn}>
+          <FontAwesome name="chevron-left" size={18} color={colors.text} />
+        </Pressable>
+        <Text style={styles.headerTitle}>账本设置</Text>
+        <View style={styles.headerBtn} />
+      </View>
+      <ScrollView>
+        {/* 页面内容 */}
+      </ScrollView>
+    </View>
+  );
+}
+```
+
+**移动端 Header 统一格式（三列布局）：**
+
+```
+┌────────────────────────────────────┐
+│  [<]       页面标题        [操作]   │
+└────────────────────────────────────┘
+```
+
+| 属性 | 值 | 说明 |
+|------|-----|------|
+| 布局 | `flexDirection: 'row'`, `justifyContent: 'space-between'` | 三列等分 |
+| 左侧按钮 | `chevron-left` 或 `arrow-left`, 18px | 返回上一页 |
+| 标题 | `fontSize: 17`, `fontWeight: '600'`, `textAlign: 'center'` | 居中，`flex: 1` 撑满 |
+| 右侧 | 操作按钮或 `<View style={styles.headerBtn} />` 占位 | 保持标题居中 |
+| 按钮尺寸 | `width: 40`, `height: 40` | 统一触摸区域 |
+| paddingTop | Web: `16px`, Native: `52px` | 安全区适配 |
+
+**核心原则：** 桌面端 Pane 和移动端路由页面是**两套独立的 UI 实现**，共享相同的 Store/Service 层，但各自管理 Header、布局和导航逻辑。
+
+**已应用此规范的页面：** 科目管理、固定资产、贷款管理、预算设置、账本设置、API Key 管理、插件管理、MCP 服务。

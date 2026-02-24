@@ -31,7 +31,20 @@ export default function NewAssetScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ cost?: string; date?: string }>();
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { isDesktop } = useBreakpoint();
+
+  if (!isAdmin) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+        <FontAwesome name="lock" size={40} color={colors.textSecondary} />
+        <Text style={{ color: colors.textSecondary, fontSize: 15 }}>仅管理员可新建资产</Text>
+        <Pressable onPress={() => router.back()} style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: Colors.primary, marginTop: 8 }}>
+          <Text style={{ color: Colors.primary, fontWeight: '600' }}>返回</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   const [name, setName] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(params.date ?? todayStr());

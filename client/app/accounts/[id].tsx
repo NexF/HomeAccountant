@@ -38,6 +38,7 @@ export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { tree, fetchTree } = useAccountStore();
   const { currentBook } = useBookStore();
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
 
   const [account, setAccount] = useState<AccountTreeNode | null>(null);
   const [name, setName] = useState('');
@@ -279,20 +280,22 @@ export default function AccountDetailScreen() {
         </View>
 
         {/* Save Button */}
-        <Pressable
-          style={[
-            styles.saveBtn,
-            { backgroundColor: dirty ? Colors.primary : colors.border },
-          ]}
-          onPress={handleSave}
-          disabled={!dirty || saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.saveBtnText}>保存修改</Text>
-          )}
-        </Pressable>
+        {isAdmin && (
+          <Pressable
+            style={[
+              styles.saveBtn,
+              { backgroundColor: dirty ? Colors.primary : colors.border },
+            ]}
+            onPress={handleSave}
+            disabled={!dirty || saving}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveBtnText}>保存修改</Text>
+            )}
+          </Pressable>
+        )}
 
         {/* 更新真实余额（仅叶子科目显示） */}
         {isBalanceAccount && account.children.length === 0 && (
@@ -341,12 +344,14 @@ export default function AccountDetailScreen() {
               ? `子科目（${account.children.length}）`
               : '新增子科目'}
           </Text>
-          <Pressable
-            style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
-            onPress={handleAddChild}
-          >
-            <FontAwesome name="plus" size={13} color={Colors.primary} />
-          </Pressable>
+          {isAdmin && (
+            <Pressable
+              style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+              onPress={handleAddChild}
+            >
+              <FontAwesome name="plus" size={13} color={Colors.primary} />
+            </Pressable>
+          )}
         </View>
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           {account.children.length > 0 ? (
@@ -383,8 +388,8 @@ export default function AccountDetailScreen() {
           )}
         </View>
 
-        {/* 停用科目按钮 — 仅非系统科目显示 */}
-        {!account.is_system && (
+        {/* 停用科目按钮 — 仅非系统科目且管理员显示 */}
+        {isAdmin && !account.is_system && (
           <Pressable
             style={styles.deactivateBtn}
             onPress={handleDeactivate}

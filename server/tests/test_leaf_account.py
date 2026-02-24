@@ -572,7 +572,7 @@ class TestAccountTreeIsLeaf:
     async def test_deep_nested_is_leaf(
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
-        """三级嵌套：1001 > 1001-02 存款 > 1001-0201 支付宝"""
+        """二级嵌套：1001 > 1001-01 现金（叶子）、1001-02 存款（叶子）"""
         resp = await client.get(
             f"/books/{test_book.id}/accounts", headers=auth_headers
         )
@@ -582,10 +582,7 @@ class TestAccountTreeIsLeaf:
         assert cash["is_leaf"] is False
 
         deposit = next(c for c in cash["children"] if c["code"] == "1001-02")
-        assert deposit["is_leaf"] is False
-
-        alipay = next(c for c in deposit["children"] if c["code"] == "1001-0201")
-        assert alipay["is_leaf"] is True
+        assert deposit["is_leaf"] is True
 
     @pytest.mark.asyncio
     async def test_is_leaf_updates_after_adding_child(

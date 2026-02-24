@@ -16,8 +16,8 @@ from app.services.loan_service import (
     create_loan, get_loan_with_account, generate_schedule,
     calc_total_interest, record_repayment, record_prepayment, LoanError,
 )
-from app.services.book_service import user_has_book_access
-from app.utils.deps import get_current_user
+from app.services.book_service import user_has_book_access, require_admin
+from app.utils.deps import get_current_user, require_book_admin
 
 router = APIRouter(tags=["贷款管理"])
 
@@ -94,9 +94,8 @@ async def create_loan_endpoint(
     book_id: str,
     body: LoanCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_book_admin),
 ):
-    await _check_book(user.id, book_id, db)
     try:
         loan = await create_loan(
             db, book_id, body.account_id, body.name,
@@ -122,7 +121,7 @@ async def update_loan_endpoint(
     loan = await get_loan_with_account(db, loan_id)
     if not loan:
         raise HTTPException(status_code=404, detail="贷款不存在")
-    await _check_book(user.id, loan.book_id, db)
+    await require_admin(db, user.id, loan.book_id)
 
     if body.name is not None:
         loan.name = body.name
@@ -143,7 +142,7 @@ async def delete_loan_endpoint(
     loan = await get_loan_with_account(db, loan_id)
     if not loan:
         raise HTTPException(status_code=404, detail="贷款不存在")
-    await _check_book(user.id, loan.book_id, db)
+    await require_admin(db, user.id, loan.book_id)
     await db.delete(loan)
     await db.commit()
 
@@ -183,7 +182,7 @@ async def repay_loan(
     loan = await get_loan_with_account(db, loan_id)
     if not loan:
         raise HTTPException(status_code=404, detail="贷款不存在")
-    await _check_book(user.id, loan.book_id, db)
+    await require_admin(db, user.id, loan.book_id)
 
     try:
         entry = await record_repayment(
@@ -206,7 +205,7 @@ async def prepay_loan(
     loan = await get_loan_with_account(db, loan_id)
     if not loan:
         raise HTTPException(status_code=404, detail="贷款不存在")
-    await _check_book(user.id, loan.book_id, db)
+    await require_admin(db, user.id, loan.book_id)
 
     try:
         entry = await record_prepayment(

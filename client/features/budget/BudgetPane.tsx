@@ -17,6 +17,7 @@ export default function BudgetPane() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { budgets, isLoading, fetchBudgets } = useBudgetStore();
 
   // Modal states
@@ -107,28 +108,30 @@ export default function BudgetPane() {
       {/* 标题 */}
       <View style={[styles.detailContent, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, backgroundColor: 'transparent' }]}>
         <Text style={[styles.detailTitle, { color: colors.text, marginBottom: 0 }]}>预算设置</Text>
-        <Pressable
-          style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]}
-          onPress={() => openCreateModal(false)}
-        >
-          <FontAwesome name="plus" size={12} color="#FFF" />
-          <Text style={styles.saveBtnText}>添加分类</Text>
-        </Pressable>
+        {isAdmin && (
+          <Pressable
+            style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]}
+            onPress={() => openCreateModal(false)}
+          >
+            <FontAwesome name="plus" size={12} color="#FFF" />
+            <Text style={styles.saveBtnText}>添加分类</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* 预算列表 */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 0 }}>
         {/* 总预算 */}
         {totalBudget ? (
-          <BudgetCard budget={totalBudget} onPress={() => openEditModal(totalBudget)} onLongPress={() => setDeleteTarget(totalBudget)} />
-        ) : (
+          <BudgetCard budget={totalBudget} onPress={isAdmin ? () => openEditModal(totalBudget) : undefined} onLongPress={isAdmin ? () => setDeleteTarget(totalBudget) : undefined} />
+        ) : isAdmin ? (
           <Pressable
             style={[styles.formCard, { backgroundColor: colors.card, padding: 24, alignItems: 'center', marginBottom: 12 }]}
             onPress={() => openCreateModal(true)}
           >
             <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '600' }}>+ 设置总预算</Text>
           </Pressable>
-        )}
+        ) : null}
 
         {/* 分类预算列表 */}
         {categoryBudgets.length === 0 ? (
@@ -137,7 +140,7 @@ export default function BudgetPane() {
           </View>
         ) : (
           categoryBudgets.map((b) => (
-            <BudgetCard key={b.id} budget={b} onPress={() => openEditModal(b)} onLongPress={() => setDeleteTarget(b)} />
+            <BudgetCard key={b.id} budget={b} onPress={isAdmin ? () => openEditModal(b) : undefined} onLongPress={isAdmin ? () => setDeleteTarget(b) : undefined} />
           ))
         )}
       </ScrollView>

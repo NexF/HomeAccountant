@@ -43,6 +43,7 @@ function AssetDetailInline({
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
 
   const [asset, setAsset] = useState<AssetResponse | null>(null);
   const [history, setHistory] = useState<DepreciationRecord[]>([]);
@@ -154,9 +155,13 @@ function AssetDetailInline({
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={{ flex: 1, fontSize: 17, fontWeight: '600', textAlign: 'center' }} numberOfLines={1}>{asset.name}</Text>
-        <Pressable onPress={() => setShowDeleteConfirm(true)} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
-          <FontAwesome name="trash-o" size={18} color={Colors.asset} />
-        </Pressable>
+        {isAdmin ? (
+          <Pressable onPress={() => setShowDeleteConfirm(true)} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+            <FontAwesome name="trash-o" size={18} color={Colors.asset} />
+          </Pressable>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       <ScrollView style={{ flex: 1 }}>
@@ -205,7 +210,7 @@ function AssetDetailInline({
           <DepreciationChart records={history} originalCost={asset.original_cost} />
         </View>
 
-        {isActive && (
+        {isActive && isAdmin && (
           <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 16 }}>
             {canDepreciate && (
               <Pressable
@@ -233,7 +238,7 @@ function AssetDetailInline({
           </View>
         )}
 
-        {showDispose && (
+        {showDispose && isAdmin && (
           <View style={[styles.formCard, { backgroundColor: colors.card, marginHorizontal: 16, marginBottom: 16, padding: 16 }]}>
             <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 12 }}>处置资产</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB' }}>
@@ -298,6 +303,7 @@ export default function AssetsPane() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { assets, summary, isLoading, filterStatus, fetchAssets, fetchSummary, setFilterStatus } = useAssetStore();
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
 
@@ -322,10 +328,12 @@ export default function AssetsPane() {
     <View style={{ flex: 1 }}>
       <View style={[styles.detailContent, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, backgroundColor: 'transparent' }]}>
         <Text style={[styles.detailTitle, { color: colors.text, marginBottom: 0 }]}>固定资产</Text>
-        <Pressable style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/assets/new' as any)}>
-          <FontAwesome name="plus" size={12} color="#FFF" />
-          <Text style={styles.saveBtnText}>添加资产</Text>
-        </Pressable>
+        {isAdmin && (
+          <Pressable style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/assets/new' as any)}>
+            <FontAwesome name="plus" size={12} color="#FFF" />
+            <Text style={styles.saveBtnText}>添加资产</Text>
+          </Pressable>
+        )}
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>

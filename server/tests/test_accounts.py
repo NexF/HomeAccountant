@@ -5,6 +5,7 @@
 - POST /books/{book_id}/accounts — 新增科目
 - PUT /accounts/{account_id} — 编辑科目
 - DELETE /accounts/{account_id} — 停用科目
+- 权限校验：member 不可执行写操作
 """
 
 import pytest
@@ -12,6 +13,7 @@ from httpx import AsyncClient
 
 from app.models.book import Book
 from app.models.account import Account
+from app.models.user import User
 
 
 class TestGetAccountTree:
@@ -188,3 +190,76 @@ class TestDeleteAccount:
             "/accounts/nonexistent", headers=auth_headers
         )
         assert resp.status_code == 404
+
+
+# ──────────── 权限校验：member 不可执行写操作 ────────────
+
+
+class TestAccountAdminPermission:
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_create_account(
+        self, client: AsyncClient, member_headers, book_with_member: Book
+    ):
+        """member 不可新增科目 → 403"""
+        resp = await client.post(
+            f"/books/{book_with_member.id}/accounts",
+            json={
+                "name": "测试科目",
+                "type": "expense",
+                "balance_direction": "debit",
+            },
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_update_account(
+        self, client: AsyncClient, auth_headers, member_headers,
+        test_book: Book, book_with_member: Book,
+    ):
+        """member 不可编辑科目 → 403"""
+        # admin 先创建科目
+        create_resp = await client.post(
+            f"/books/{test_book.id}/accounts",
+            json={
+                "name": "待编辑",
+                "type": "expense",
+                "balance_direction": "debit",
+            },
+            headers=auth_headers,
+        )
+        account_id = create_resp.json()["id"]
+
+        # member 试图编辑
+        resp = await client.put(
+            f"/accounts/{account_id}",
+            json={"name": "新名称"},
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_delete_account(
+        self, client: AsyncClient, auth_headers, member_headers,
+        test_book: Book, book_with_member: Book,
+    ):
+        """member 不可停用科目 → 403"""
+        # admin 先创建科目
+        create_resp = await client.post(
+            f"/books/{test_book.id}/accounts",
+            json={
+                "name": "待停用",
+                "type": "expense",
+                "balance_direction": "debit",
+            },
+            headers=auth_headers,
+        )
+        account_id = create_resp.json()["id"]
+
+        # member 试图停用
+        resp = await client.delete(
+            f"/accounts/{account_id}",
+            headers=member_headers,
+        )
+        assert resp.status_code == 403

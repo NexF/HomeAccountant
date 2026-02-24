@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Alert, Platform, ScrollView } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
@@ -19,6 +19,7 @@ import { BudgetPane } from '@/features/budget';
 import { ApiKeysPane } from '@/features/api-key';
 import { PluginsPane } from '@/features/plugin';
 import { MCPPane } from '@/features/mcp';
+import { BookSettingsPane } from '@/features/book';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -28,16 +29,43 @@ export default function ProfileScreen() {
   const { isDesktop } = useBreakpoint();
 
   const [activeDetail, setActiveDetail] = useState<DetailPane>('none');
+  const focusedRef = useRef(false);
 
-  const consumePendingPane = useProfileNavStore((s) => s.consume);
+  // 追踪 tab 聚焦/失焦状态，聚焦时处理 pendingPane 或重置
   useFocusEffect(
     useCallback(() => {
-      const pane = consumePendingPane();
+      focusedRef.current = true;
+
       if (isDesktop) {
-        setActiveDetail(pane ? (pane as DetailPane) : 'none');
+        const pane = useProfileNavStore.getState().pendingPane;
+        if (pane) {
+          useProfileNavStore.getState().consume();
+          setActiveDetail(pane as DetailPane);
+        } else {
+          setActiveDetail('none');
+        }
       }
-    }, [consumePendingPane, isDesktop])
+
+      return () => {
+        focusedRef.current = false;
+      };
+    }, [isDesktop])
   );
+
+  // 已在 profile 页面时，响应来自 Sidebar 的 navigateTo
+  // 使用 zustand subscribe 绕过 React 渲染周期的时序问题
+  useEffect(() => {
+    if (!isDesktop) return;
+    const unsub = useProfileNavStore.subscribe((state) => {
+      if (focusedRef.current && state.pendingPane) {
+        const pane = useProfileNavStore.getState().consume();
+        if (pane) {
+          setActiveDetail(pane as DetailPane);
+        }
+      }
+    });
+    return unsub;
+  }, [isDesktop]);
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
@@ -75,6 +103,11 @@ export default function ProfileScreen() {
           icon="pencil"
           label="编辑个人信息"
           onPress={() => handleMenuPress('edit-profile', '/profile/edit')}
+        />
+        <MenuItem
+          icon="book"
+          label="账本设置"
+          onPress={() => handleMenuPress('book-settings', '/settings/book')}
         />
         <MenuItem
           icon="list-alt"
@@ -140,6 +173,11 @@ export default function ProfileScreen() {
           {activeDetail === 'api-keys' && <ApiKeysPane />}
           {activeDetail === 'plugins' && <PluginsPane />}
           {activeDetail === 'mcp' && <MCPPane onNavigate={setActiveDetail} />}
+          {activeDetail === 'book-settings' && (
+            <BookSettingsPane
+              onBookDeleted={() => setActiveDetail('none')}
+            />
+          )}
           {activeDetail === 'none' && (
             <View style={styles.detailEmpty}>
               <FontAwesome name="user-circle" size={48} color={colors.textSecondary} />

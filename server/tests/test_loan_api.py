@@ -2,6 +2,7 @@
 
 覆盖：创建贷款、查看还款计划、记录还款、提前还款、验证剩余本金。
 等额本息和等额本金两种方式都测试。
+权限校验：member 不可执行写操作。
 """
 
 from datetime import date
@@ -12,6 +13,7 @@ from httpx import AsyncClient
 from app.models.loan import Loan
 from app.models.account import Account
 from app.models.book import Book
+from app.models.user import User
 
 
 # ═══════════════════════════════════════════
@@ -383,3 +385,83 @@ class TestLoanSummary:
         assert data["total_remaining"] == float(sample_loan.remaining_principal)
         assert data["loan_count"] == 1
         assert data["active_count"] == 1
+
+
+# ═══════════════════════════════════════════
+# 权限校验：member 不可执行写操作
+# ═══════════════════════════════════════════
+
+
+class TestLoanAdminPermission:
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_create_loan(
+        self, client: AsyncClient, member_headers,
+        book_with_member: Book, liability_account: Account,
+    ):
+        """member 不可创建贷款 → 403"""
+        payload = {
+            "name": "测试贷款",
+            "account_id": liability_account.id,
+            "principal": 10000,
+            "annual_rate": 5,
+            "total_months": 12,
+            "start_date": "2025-01-01",
+        }
+        resp = await client.post(
+            f"/books/{book_with_member.id}/loans",
+            json=payload,
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_update_loan(
+        self, client: AsyncClient, member_headers,
+        sample_loan: Loan, book_with_member: Book,
+    ):
+        """member 不可更新贷款 → 403"""
+        resp = await client.put(
+            f"/loans/{sample_loan.id}",
+            json={"name": "试图修改"},
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_delete_loan(
+        self, client: AsyncClient, member_headers,
+        sample_loan: Loan, book_with_member: Book,
+    ):
+        """member 不可删除贷款 → 403"""
+        resp = await client.delete(
+            f"/loans/{sample_loan.id}",
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_repay_loan(
+        self, client: AsyncClient, member_headers,
+        sample_loan: Loan, bank_account: Account, book_with_member: Book,
+    ):
+        """member 不可记录还款 → 403"""
+        resp = await client.post(
+            f"/loans/{sample_loan.id}/repay",
+            json={"payment_account_id": bank_account.id},
+            headers=member_headers,
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_member_cannot_prepay_loan(
+        self, client: AsyncClient, member_headers,
+        sample_loan: Loan, bank_account: Account, book_with_member: Book,
+    ):
+        """member 不可提前还款 → 403"""
+        resp = await client.post(
+            f"/loans/{sample_loan.id}/prepay",
+            json={"amount": 5000, "payment_account_id": bank_account.id},
+            headers=member_headers,
+        )
+        assert resp.status_code == 403

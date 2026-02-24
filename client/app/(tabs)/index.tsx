@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -94,6 +94,13 @@ export default function DashboardScreen() {
       fetchData().finally(() => setLoading(false));
     }, [fetchData])
   );
+
+  // 切换账本后刷新数据
+  useEffect(() => {
+    if (currentBook) {
+      fetchData();
+    }
+  }, [currentBook?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

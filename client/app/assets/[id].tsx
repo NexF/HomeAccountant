@@ -41,6 +41,7 @@ export default function AssetDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
 
   const [asset, setAsset] = useState<AssetResponse | null>(null);
   const [history, setHistory] = useState<DepreciationRecord[]>([]);
@@ -232,7 +233,7 @@ export default function AssetDetailScreen() {
         <DepreciationChart records={history} originalCost={asset.original_cost} />
 
         {/* 操作按钮 */}
-        {isActive && (
+        {isActive && isAdmin && (
           <View style={styles.actions}>
             {canDepreciate && (
               <Pressable
@@ -265,7 +266,7 @@ export default function AssetDetailScreen() {
         )}
 
         {/* 处置表单 */}
-        {showDispose && (
+        {showDispose && isAdmin && (
           <View style={[styles.disposeForm, { backgroundColor: colors.card }]}>
             <Text style={[styles.disposeTitle, { color: colors.text }]}>处置资产</Text>
 

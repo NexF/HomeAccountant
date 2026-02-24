@@ -48,11 +48,13 @@ function AccountRow({
   depth,
   onPress,
   onAdd,
+  isAdmin,
 }: {
   node: AccountTreeNode;
   depth: number;
   onPress: (node: AccountTreeNode) => void;
   onAdd: (node: AccountTreeNode) => void;
+  isAdmin: boolean;
 }) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
@@ -113,15 +115,17 @@ function AccountRow({
             {DIRECTION_LABEL[node.balance_direction]}
           </Text>
         </View>
-        <Pressable
-          style={styles.addBtn}
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onAdd(node);
-          }}
-        >
-          <FontAwesome name="plus" size={13} color={Colors.primary} />
-        </Pressable>
+        {isAdmin && (
+          <Pressable
+            style={styles.addBtn}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onAdd(node);
+            }}
+          >
+            <FontAwesome name="plus" size={13} color={Colors.primary} />
+          </Pressable>
+        )}
       </Pressable>
       {expanded &&
         hasChildren &&
@@ -132,6 +136,7 @@ function AccountRow({
             depth={depth + 1}
             onPress={onPress}
             onAdd={onAdd}
+            isAdmin={isAdmin}
           />
         ))}
     </>
@@ -143,6 +148,7 @@ export default function AccountsScreen() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const { currentBook, fetchBooks } = useBookStore();
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { tree, isLoading, fetchTree } = useAccountStore();
   const [activeTab, setActiveTab] = useState<AccountType>('asset');
 
@@ -235,9 +241,13 @@ export default function AccountsScreen() {
           <FontAwesome name="arrow-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>科目管理</Text>
-        <Pressable onPress={handleHeaderAdd} style={styles.backBtn}>
-          <FontAwesome name="plus" size={18} color={Colors.primary} />
-        </Pressable>
+        {isAdmin ? (
+          <Pressable onPress={handleHeaderAdd} style={styles.backBtn}>
+            <FontAwesome name="plus" size={18} color={Colors.primary} />
+          </Pressable>
+        ) : (
+          <View style={styles.backBtn} />
+        )}
       </View>
 
       {/* Tabs */}
@@ -299,6 +309,7 @@ export default function AccountsScreen() {
               depth={0}
               onPress={handlePress}
               onAdd={handleAdd}
+              isAdmin={isAdmin}
             />
           ))
         )}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   Pressable,
@@ -125,6 +125,13 @@ export default function ReportsScreen() {
       fetchData();
     }, [fetchData])
   );
+
+  // 切换账本后刷新数据
+  useEffect(() => {
+    if (currentBook) {
+      fetchData();
+    }
+  }, [currentBook?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

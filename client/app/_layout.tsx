@@ -137,6 +137,7 @@ function RootLayoutNav() {
             <Stack.Screen name="loans/index" options={{ headerShown: false, title: '贷款管理' }} />
             <Stack.Screen name="loans/[id]" options={{ headerShown: false, title: '贷款详情' }} />
             <Stack.Screen name="loans/new" options={{ headerShown: false, title: '新建贷款' }} />
+            <Stack.Screen name="settings/book" options={{ headerShown: false, title: '账本设置' }} />
             <Stack.Screen name="settings/budget" options={{ headerShown: false, title: '预算设置' }} />
             <Stack.Screen name="settings/api-keys" options={{ headerShown: false, title: 'API Key 管理' }} />
             <Stack.Screen name="settings/plugins" options={{ headerShown: false, title: '插件管理' }} />

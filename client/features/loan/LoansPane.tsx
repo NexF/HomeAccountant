@@ -37,6 +37,7 @@ function LoanDetailInline({
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
 
   const [loan, setLoan] = useState<LoanResponse | null>(null);
   const [schedule, setSchedule] = useState<RepaymentScheduleItem[]>([]);
@@ -107,7 +108,11 @@ function LoanDetailInline({
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
         <Pressable onPress={onBack} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}><FontAwesome name="chevron-left" size={18} color={colors.text} /></Pressable>
         <Text style={{ flex: 1, fontSize: 17, fontWeight: '600', textAlign: 'center' }} numberOfLines={1}>{loan.name}</Text>
-        <Pressable onPress={() => setShowDeleteConfirm(true)} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}><FontAwesome name="trash-o" size={18} color={Colors.asset} /></Pressable>
+        {isAdmin ? (
+          <Pressable onPress={() => setShowDeleteConfirm(true)} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}><FontAwesome name="trash-o" size={18} color={Colors.asset} /></Pressable>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       <ScrollView style={{ flex: 1 }}>
@@ -137,7 +142,7 @@ function LoanDetailInline({
           </View>
         </View>
 
-        {isActive && (
+        {isActive && isAdmin && (
           <View style={[styles.formCard, { backgroundColor: colors.card, marginHorizontal: 16, marginBottom: 16, padding: 16 }]}>
             <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 12 }}>记录还款</Text>
             <Pressable style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingVertical: 12 }} onPress={() => setPickerMode('payment')}>
@@ -203,6 +208,7 @@ export default function LoansPane() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { loans, summary, isLoading, filterStatus, fetchLoans, fetchSummary, setFilterStatus } = useLoanStore();
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
 
@@ -220,9 +226,11 @@ export default function LoansPane() {
     <View style={{ flex: 1 }}>
       <View style={[styles.detailContent, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, backgroundColor: 'transparent' }]}>
         <Text style={[styles.detailTitle, { color: colors.text, marginBottom: 0 }]}>贷款管理</Text>
-        <Pressable style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/loans/new' as any)}>
-          <FontAwesome name="plus" size={12} color="#FFF" /><Text style={styles.saveBtnText}>新建贷款</Text>
-        </Pressable>
+        {isAdmin && (
+          <Pressable style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/loans/new' as any)}>
+            <FontAwesome name="plus" size={12} color="#FFF" /><Text style={styles.saveBtnText}>新建贷款</Text>
+          </Pressable>
+        )}
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>

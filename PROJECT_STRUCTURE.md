@@ -1,6 +1,6 @@
 # 家庭记账 - 项目结构文档
 
-> **当前版本：v0.2.1 — 详见 [`docs/v0.2.1/`](./docs/v0.2.1/)**
+> **当前版本：v0.3.0 — 详见 [`docs/v0.3.0/`](./docs/v0.3.0/)**
 > **历史版本归档：[`docs/`](./docs/)**
 
 ```
@@ -8,11 +8,11 @@ home_accountant/
 ├── client/                          # 前端（React Native + Expo，三端统一）
 │   ├── app/                         # Expo Router 文件系统路由
 │   │   ├── (tabs)/                  # Tab 导航布局
-│   │   │   ├── _layout.tsx          # Tab 布局配置（底部 Tab Bar + 桌面端侧边栏）
+│   │   │   ├── _layout.tsx          # Tab 布局配置（底部 Tab Bar + 桌面端侧边栏 + 账本切换入口）
 │   │   │   ├── index.tsx            # 总览 Dashboard（桌面端左右分栏）
 │   │   │   ├── ledger.tsx           # 账本（分录列表，桌面端左列表+右详情）
 │   │   │   ├── reports.tsx          # 报表入口（balance/income/trends 内嵌 Tab）
-│   │   │   └── profile.tsx          # 我的（桌面端左菜单+右详情面板，移动端菜单列表）
+│   │   │   └── profile.tsx          # 我的（桌面端左菜单+右详情面板，移动端菜单列表，含账本设置入口）
 │   │   ├── (auth)/                  # 认证相关页面
 │   │   │   ├── _layout.tsx          # 认证布局
 │   │   │   ├── login.tsx
@@ -39,6 +39,7 @@ home_accountant/
 │   │   │   └── reconcile.tsx        # 待处理队列（对账调节）
 │   │   ├── settings/                # 设置（移动端独立页面）
 │   │   │   ├── api-keys.tsx         # API Key 管理
+│   │   │   ├── book.tsx             # 账本设置（重命名/成员管理/删除/退出）  ← v0.3.0 新增
 │   │   │   ├── budget.tsx           # 预算设置（总预算 + 分类预算列表 + 进度条）
 │   │   │   ├── mcp.tsx              # MCP 服务配置（连接配置/JSON 复制/Tools 列表）
 │   │   │   └── plugins.tsx          # 插件管理
@@ -50,6 +51,13 @@ home_accountant/
 │   │   └── +not-found.tsx           # 404 页面
 │   │
 │   ├── features/                    # 业务功能模块（按领域划分）
+│   │   ├── book/                    # 账本管理  ← v0.3.0 新增
+│   │   │   ├── index.ts             # Barrel export
+│   │   │   ├── BookSwitcher.tsx     # 账本切换器（桌面端 Dropdown / 移动端 BottomSheet）
+│   │   │   ├── BookSettingsPane.tsx # 桌面端账本设置面板（重命名/成员管理/删除/退出）
+│   │   │   ├── MemberList.tsx       # 成员列表组件（头像+昵称+邮箱+角色+移除）
+│   │   │   ├── InviteMemberModal.tsx # 邀请成员弹窗（邮箱+角色选择）
+│   │   │   └── CreateBookModal.tsx  # 创建账本弹窗（名称+类型选择）
 │   │   ├── entry/                   # 记账
 │   │   │   ├── index.ts             # Barrel export
 │   │   │   ├── AmountInput.tsx      # 金额输入键盘
@@ -102,7 +110,7 @@ home_accountant/
 │   │   │   └── MCPPane.tsx          # 桌面端 MCP 服务面板
 │   │   └── profile/                 # 个人中心（共享组件 + 桌面端面板）
 │   │       ├── index.ts
-│   │       ├── types.ts             # DetailPane 类型定义
+│   │       ├── types.ts             # DetailPane 类型定义（含 'book-settings'）
 │   │       ├── styles.ts            # 共享样式（styles + budgetStyles）
 │   │       ├── MenuItem.tsx         # 菜单项组件（profile.tsx 复用）
 │   │       ├── EditProfilePane.tsx  # 编辑个人信息面板
@@ -111,7 +119,7 @@ home_accountant/
 │   ├── components/                  # 全局通用组件（非业务相关）
 │   │   ├── layout/                  # 布局组件（响应式）
 │   │   │   ├── ResponsiveLayout.tsx # 根据断点切换底部 Tab / 侧边栏布局
-│   │   │   ├── Sidebar.tsx          # 桌面端左侧边栏导航
+│   │   │   ├── Sidebar.tsx          # 桌面端左侧边栏导航（含 BookSwitcher 集成）
 │   │   │   ├── TopBar.tsx           # 桌面端顶部栏（面包屑+记账按钮）
 │   │   │   └── ContentContainer.tsx # 内容区容器（max-width 1200px 居中）
 │   │   ├── __tests__/               # 组件测试
@@ -126,7 +134,7 @@ home_accountant/
 │   │
 │   ├── stores/                      # Zustand 状态管理
 │   │   ├── authStore.ts             # 用户认证状态
-│   │   ├── bookStore.ts             # 当前账本
+│   │   ├── bookStore.ts             # 当前账本 + 角色（currentRole: admin/member）
 │   │   ├── accountStore.ts          # 科目数据
 │   │   ├── entryStore.ts            # 分录数据
 │   │   ├── assetStore.ts            # 固定资产状态
@@ -137,7 +145,7 @@ home_accountant/
 │   ├── services/                    # API 请求层
 │   │   ├── api.ts                   # Axios/Fetch 基础配置
 │   │   ├── authService.ts
-│   │   ├── bookService.ts
+│   │   ├── bookService.ts           # 账本 CRUD + 成员管理 API（含 updateBook/deleteBook/getMembers/inviteMember/removeMember/updateMemberRole/leaveBook）
 │   │   ├── accountService.ts
 │   │   ├── entryService.ts
 │   │   ├── reportService.ts
@@ -191,7 +199,7 @@ home_accountant/
 │   │   ├── schemas/                 # Pydantic 请求/响应模型
 │   │   │   ├── __init__.py
 │   │   │   ├── auth.py
-│   │   │   ├── book.py
+│   │   │   ├── book.py              # CreateBookRequest/UpdateBookRequest/InviteMemberRequest/UpdateMemberRoleRequest/BookResponse(+role)/BookMemberResponse
 │   │   │   ├── account.py
 │   │   │   ├── entry.py
 │   │   │   ├── asset.py             # AssetCreate/Update/Response/Dispose/Summary/DepreciationRecord
@@ -205,12 +213,12 @@ home_accountant/
 │   │   ├── routers/                 # API 路由
 │   │   │   ├── __init__.py
 │   │   │   ├── auth.py              # POST /auth/register, /auth/login
-│   │   │   ├── books.py             # CRUD /books
-│   │   │   ├── accounts.py          # CRUD /books/{id}/accounts
-│   │   │   ├── entries.py           # CRUD /books/{id}/entries
-│   │   │   ├── assets.py            # 固定资产 API（8个端点）
-│   │   │   ├── loans.py             # 贷款 API（9个端点）
-│   │   │   ├── budgets.py           # 预算 API（7个端点）
+│   │   │   ├── books.py             # 账本 CRUD + 成员管理（9个端点：GET/POST/PUT/DELETE /books + 成员 CRUD + leave）
+│   │   │   ├── accounts.py          # CRUD /books/{id}/accounts（admin-only 写操作）
+│   │   │   ├── entries.py           # CRUD /books/{id}/entries（member+ 权限）
+│   │   │   ├── assets.py            # 固定资产 API（8个端点，admin-only 写操作）
+│   │   │   ├── loans.py             # 贷款 API（9个端点，admin-only 写操作）
+│   │   │   ├── budgets.py           # 预算 API（7个端点，admin-only 写操作）
 │   │   │   ├── reports.py           # GET /books/{id}/balance-sheet, /income-statement
 │   │   │   ├── sync.py              # 同步 & 对账 API
 │   │   │   ├── api_keys.py          # API Key CRUD
@@ -222,7 +230,7 @@ home_accountant/
 │   │   │   ├── entry_service.py     # 记账核心逻辑（自动生成复式分录）
 │   │   │   ├── batch_entry_service.py # 批量记账服务
 │   │   │   ├── account_service.py   # 科目管理
-│   │   │   ├── book_service.py      # 账本管理
+│   │   │   ├── book_service.py      # 账本管理 + 成员管理 + 权限检查（get_member_role/require_admin/require_member）
 │   │   │   ├── report_service.py    # 资产负债表/损益表计算
 │   │   │   ├── depreciation_service.py  # 折旧计算引擎（按月/按日直线法、处置）
 │   │   │   ├── loan_service.py      # 贷款计算引擎（等额本息/等额本金、还款计划、提前还款）
@@ -243,7 +251,7 @@ home_accountant/
 │   │       ├── __init__.py
 │   │       ├── security.py          # 密码哈希、JWT 工具
 │   │       ├── seed.py              # 初始化预置科目数据
-│   │       ├── deps.py              # FastAPI 依赖注入（当前用户、数据库会话）
+│   │       ├── deps.py              # FastAPI 依赖注入（当前用户、数据库会话、require_book_admin/require_book_member）
 │   │       └── api_key_auth.py      # API Key 认证中间件
 │   │
 │   ├── mcp_server/                  # MCP 服务模块（Model Context Protocol）
@@ -267,6 +275,8 @@ home_accountant/
 │   │   ├── conftest.py              # 测试 fixtures（测试数据库、客户端等）
 │   │   ├── test_auth.py             # 认证测试
 │   │   ├── test_books.py            # 账本测试
+│   │   ├── test_book_management.py  # 账本更新/删除/权限校验测试  ← v0.3.0 新增
+│   │   ├── test_book_members.py     # 成员邀请/移除/角色修改/退出测试  ← v0.3.0 新增
 │   │   ├── test_accounts.py         # 科目测试
 │   │   ├── test_entries.py          # 记账逻辑测试（复式平衡校验）
 │   │   ├── test_batch_entries.py    # 批量记账测试
@@ -279,6 +289,7 @@ home_accountant/
 │   │   ├── test_api_keys.py         # API Key 测试
 │   │   ├── test_plugins.py          # 插件测试
 │   │   ├── test_e2e_api_key_plugin_flow.py # API Key + 插件端到端流程测试
+│   │   ├── test_leaf_account.py     # 叶子科目验证测试
 │   │   ├── test_mcp_e2e.py          # MCP 端到端测试
 │   │   └── test_mcp_sse.py          # MCP SSE 连接测试
 │   │
@@ -304,11 +315,22 @@ home_accountant/
 │   │   ├── PRD.md
 │   │   ├── PROJECT_STRUCTURE.md
 │   │   └── TECH_SPEC.md
-│   └── v0.2.1/                      # v0.2.1 当前版本
+│   ├── v0.2.1/                      # v0.2.1 归档
+│   │   ├── PRD.md
+│   │   └── TECH_SPEC.md
+│   ├── v0.2.2/                      # v0.2.2 归档
+│   │   ├── PRD.md
+│   │   └── TECH_SPEC.md
+│   ├── v0.2.3/                      # v0.2.3 归档
+│   │   ├── PRD.md
+│   │   └── TECH_SPEC.md
+│   └── v0.3.0/                      # v0.3.0 当前版本（多账本支持 & 家庭协作）
 │       ├── PRD.md
 │       └── TECH_SPEC.md
 │
 ├── API_AUTH.md                      # API 认证说明（JWT + API Key 双模式）
-├── DESIGN_GUIDELINES.md             # 前端交互设计规范（9 节）
+├── CHART_OF_ACCOUNTS.md             # 预置科目体系文档
+├── DEV_RUN.md                       # 开发环境启动指南
+├── DESIGN_GUIDELINES.md             # 前端交互设计规范（10 节）
 └── PROJECT_STRUCTURE.md             # 本文件
 ```

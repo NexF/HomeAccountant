@@ -55,6 +55,7 @@ export default function LoanDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
 
   const [loan, setLoan] = useState<LoanResponse | null>(null);
   const [schedule, setSchedule] = useState<RepaymentScheduleItem[]>([]);
@@ -185,9 +186,13 @@ export default function LoanDetailScreen() {
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{loan.name}</Text>
-        <Pressable onPress={handleDelete} style={styles.headerBtn}>
-          <FontAwesome name="trash-o" size={18} color={Colors.asset} />
-        </Pressable>
+        {isAdmin ? (
+          <Pressable onPress={handleDelete} style={styles.headerBtn}>
+            <FontAwesome name="trash-o" size={18} color={Colors.asset} />
+          </Pressable>
+        ) : (
+          <View style={styles.headerBtn} />
+        )}
       </View>
 
       <ScrollView style={styles.scroll}>
@@ -248,7 +253,7 @@ export default function LoanDetailScreen() {
         </View>
 
         {/* 还款操作 */}
-        {isActive && (
+        {isActive && isAdmin && (
           <View style={[styles.repaySection, { backgroundColor: colors.card }]}>
             <Text style={[styles.repaySectionTitle, { color: colors.text }]}>记录还款</Text>
 

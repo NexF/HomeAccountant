@@ -19,9 +19,9 @@ from app.services.account_service import (
     deactivate_account,
     AccountError,
 )
-from app.services.book_service import user_has_book_access
+from app.services.book_service import user_has_book_access, require_admin
 from app.utils.api_key_auth import get_current_user_flexible
-from app.utils.deps import get_current_user
+from app.utils.deps import get_current_user, require_book_admin
 
 router = APIRouter(tags=["科目"])
 
@@ -56,11 +56,10 @@ async def get_book_accounts(
 async def create_account(
     book_id: str,
     body: CreateAccountRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_book_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """新增自定义科目，如果父科目有历史分录则自动迁移"""
-    await _check_book_access(current_user.id, book_id, db)
+    """新增自定义科目，如果父科目有历史分录则自动迁移。需 admin 权限"""
     account, migration_info = await create_custom_account(
         db,
         book_id=book_id,
@@ -87,11 +86,11 @@ async def edit_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """编辑科目名称、图标、排序"""
+    """编辑科目名称、图标、排序。需 admin 权限"""
     account = await get_account_by_id(db, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="科目不存在")
-    await _check_book_access(current_user.id, account.book_id, db)
+    await require_admin(db, current_user.id, account.book_id)
 
     updated = await update_account(
         db, account, name=body.name, icon=body.icon, sort_order=body.sort_order
@@ -109,11 +108,11 @@ async def delete_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """软删除（停用）科目，有分录引用或有子科目时拒绝"""
+    """软删除（停用）科目，有分录引用或有子科目时拒绝。需 admin 权限"""
     account = await get_account_by_id(db, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="科目不存在")
-    await _check_book_access(current_user.id, account.book_id, db)
+    await require_admin(db, current_user.id, account.book_id)
 
     try:
         deactivated = await deactivate_account(db, account)

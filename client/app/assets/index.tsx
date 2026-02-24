@@ -28,6 +28,7 @@ export default function AssetListScreen() {
   const colors = Colors[colorScheme];
   const router = useRouter();
   const currentBook = useBookStore((s) => s.currentBook);
+  const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { assets, summary, isLoading, filterStatus, fetchAssets, fetchSummary, setFilterStatus } =
     useAssetStore();
   const { isDesktop } = useBreakpoint();
@@ -61,12 +62,16 @@ export default function AssetListScreen() {
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>固定资产</Text>
-        <Pressable
-          style={[styles.addBtn, { backgroundColor: Colors.primary }]}
-          onPress={() => router.push('/assets/new' as any)}
-        >
-          <FontAwesome name="plus" size={14} color="#FFF" />
-        </Pressable>
+        {isAdmin ? (
+          <Pressable
+            style={[styles.addBtn, { backgroundColor: Colors.primary }]}
+            onPress={() => router.push('/assets/new' as any)}
+          >
+            <FontAwesome name="plus" size={14} color="#FFF" />
+          </Pressable>
+        ) : (
+          <View style={styles.headerBtn} />
+        )}
       </View>
 
       {/* Summary Card */}
@@ -149,12 +154,14 @@ export default function AssetListScreen() {
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             暂无固定资产
           </Text>
-          <Pressable
-            style={[styles.emptyBtn, { borderColor: Colors.primary }]}
-            onPress={() => router.push('/assets/new' as any)}
-          >
-            <Text style={{ color: Colors.primary, fontWeight: '600' }}>添加资产</Text>
-          </Pressable>
+          {isAdmin && (
+            <Pressable
+              style={[styles.emptyBtn, { borderColor: Colors.primary }]}
+              onPress={() => router.push('/assets/new' as any)}
+            >
+              <Text style={{ color: Colors.primary, fontWeight: '600' }}>添加资产</Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         <ScrollView

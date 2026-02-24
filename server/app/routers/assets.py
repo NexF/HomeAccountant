@@ -27,8 +27,8 @@ from app.services.depreciation_service import (
     get_depreciation_history,
     AssetError,
 )
-from app.services.book_service import user_has_book_access
-from app.utils.deps import get_current_user
+from app.services.book_service import user_has_book_access, require_admin
+from app.utils.deps import get_current_user, require_book_admin
 
 router = APIRouter(tags=["固定资产"])
 
@@ -137,7 +137,7 @@ async def get_asset(
 async def create_asset(
     book_id: str,
     body: AssetCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_book_admin),
     db: AsyncSession = Depends(get_db),
 ):
     await _check_book(current_user.id, book_id, db)
@@ -188,7 +188,7 @@ async def update_asset(
     asset = await get_asset_with_account(db, asset_id)
     if not asset:
         raise HTTPException(status_code=404, detail="资产不存在")
-    await _check_book(current_user.id, asset.book_id, db)
+    await require_admin(db, current_user.id, asset.book_id)
 
     if asset.status == "disposed":
         raise HTTPException(status_code=400, detail="已处置的资产不能修改")
@@ -221,7 +221,7 @@ async def delete_asset(
     asset = await get_asset_with_account(db, asset_id)
     if not asset:
         raise HTTPException(status_code=404, detail="资产不存在")
-    await _check_book(current_user.id, asset.book_id, db)
+    await require_admin(db, current_user.id, asset.book_id)
 
     await db.delete(asset)
     await db.flush()
@@ -244,7 +244,7 @@ async def depreciate_asset(
     asset = await get_asset_with_account(db, asset_id)
     if not asset:
         raise HTTPException(status_code=404, detail="资产不存在")
-    await _check_book(current_user.id, asset.book_id, db)
+    await require_admin(db, current_user.id, asset.book_id)
 
     # 自动生成期间标签
     if not period:
@@ -283,7 +283,7 @@ async def dispose(
     asset = await get_asset_with_account(db, asset_id)
     if not asset:
         raise HTTPException(status_code=404, detail="资产不存在")
-    await _check_book(current_user.id, asset.book_id, db)
+    await require_admin(db, current_user.id, asset.book_id)
 
     try:
         entry = await dispose_asset(

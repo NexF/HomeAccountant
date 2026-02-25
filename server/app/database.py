@@ -34,6 +34,8 @@ async def init_db():
         await _migrate_budgets(conn)
         # v0.2.0: journal_entries 表新增 external_id 字段
         await _migrate_journal_external_id(conn)
+        # v0.4.0: users 表新增 is_active / last_active_at 字段
+        await _migrate_users_admin(conn)
 
 
 async def _migrate_budgets(conn):
@@ -72,3 +74,19 @@ async def _migrate_journal_external_id(conn):
             "ON journal_entries(book_id, external_id) "
             "WHERE external_id IS NOT NULL"
         ))
+
+
+async def _migrate_users_admin(conn):
+    """为 users 表补充 v0.4.0 新增的 is_active 和 last_active_at 列"""
+    from sqlalchemy import text
+
+    result = await conn.execute(text("PRAGMA table_info(users)"))
+    columns = {row[1] for row in result.fetchall()}
+
+    migrations = [
+        ("is_active", "ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"),
+        ("last_active_at", "ALTER TABLE users ADD COLUMN last_active_at TIMESTAMP"),
+    ]
+    for col_name, sql in migrations:
+        if col_name not in columns:
+            await conn.execute(text(sql))

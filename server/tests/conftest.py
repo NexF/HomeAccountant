@@ -23,6 +23,9 @@ from app.config import settings
 # 测试环境设置固定邀请码
 settings.INVITE_CODE = "TEST01"
 
+# 测试环境设置管理密码
+settings.ADMIN_PASSWORD = "admin-test-pwd"
+
 
 # ──────────── 事件循环 ────────────
 

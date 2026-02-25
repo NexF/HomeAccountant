@@ -23,7 +23,10 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 天
 
     # 邀请码（为空则不校验，允许自由注册）
-    INVITE_CODE: str = ""
+    INVITE_CODE: str = "ggb666"
+
+    # 管理后台密码（为空则管理后台不可用）
+    ADMIN_PASSWORD: str = "gbb2026"
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:8081", "http://localhost:19006", "http://localhost:3000"]

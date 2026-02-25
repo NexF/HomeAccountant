@@ -12,4 +12,5 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-["*"]}
       - DEBUG=false
       - INVITE_CODE=ggb666
+      - ADMIN_PASSWORD=gbb2026
     restart: unless-stopped

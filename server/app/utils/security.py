@@ -7,6 +7,8 @@ from app.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+ADMIN_TOKEN_EXPIRE_MINUTES = 120  # 2 小时
+
 
 def hash_password(password: str) -> str:
     """对密码进行 bcrypt 哈希"""
@@ -36,3 +38,23 @@ def decode_access_token(token: str) -> str | None:
         return payload.get("sub")
     except JWTError:
         return None
+
+
+def create_admin_token() -> str:
+    """签发 admin JWT，有效期 2h"""
+    expire = datetime.utcnow() + timedelta(minutes=ADMIN_TOKEN_EXPIRE_MINUTES)
+    payload = {
+        "type": "admin",
+        "exp": expire,
+        "iat": datetime.utcnow(),
+    }
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def decode_admin_token(token: str) -> bool:
+    """验证 admin JWT，合法返回 True"""
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        return payload.get("type") == "admin"
+    except JWTError:
+        return False

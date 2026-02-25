@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, DateTime
+from sqlalchemy import String, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -21,6 +21,10 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )
+
+    # v0.4.0 新增
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # 关联
     books = relationship("Book", back_populates="owner")

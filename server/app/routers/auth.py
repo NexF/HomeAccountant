@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,6 +51,14 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         user = await authenticate_user(db, body.email, body.password)
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
+
+    # v0.4.0: 封禁用户不允许登录
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="账户已被封禁")
+
+    # v0.4.0: 更新最后活跃时间
+    user.last_active_at = datetime.utcnow()
+    await db.flush()
 
     token = build_token(user.id)
     return AuthResponse(

@@ -1,10 +1,11 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.utils.security import decode_access_token
+from app.utils.security import decode_access_token, decode_admin_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -30,7 +31,21 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
+    # v0.4.0: 封禁用户校验
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="账户已被封禁")
+
     return user
+
+
+async def require_admin_token(
+    x_admin_token: str = Header(..., alias="X-Admin-Token"),
+) -> None:
+    """从 X-Admin-Token 请求头提取并验证 admin JWT"""
+    if not settings.ADMIN_PASSWORD:
+        raise HTTPException(status_code=404)
+    if not decode_admin_token(x_admin_token):
+        raise HTTPException(status_code=401, detail="admin token 无效或已过期")
 
 
 # ──────────── 账本权限依赖 ────────────

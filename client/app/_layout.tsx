@@ -99,6 +99,10 @@ function RootLayoutNav() {
     if (!isInitialized) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inAdminGroup = segments[0] === 'admin';
+
+    // admin 路由有自己的守卫，不参与用户 auth guard
+    if (inAdminGroup) return;
 
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
@@ -123,6 +127,7 @@ function RootLayoutNav() {
           <Stack>
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="admin" options={{ headerShown: false }} />
             <Stack.Screen name="accounts/index" options={{ headerShown: false, title: '科目管理' }} />
             <Stack.Screen name="accounts/[id]" options={{ headerShown: false, title: '科目详情' }} />
             <Stack.Screen name="entry/new" options={{ headerShown: false, title: '记一笔' }} />

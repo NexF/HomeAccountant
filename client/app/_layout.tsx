@@ -147,6 +147,8 @@ function RootLayoutNav() {
             <Stack.Screen name="settings/api-keys" options={{ headerShown: false, title: 'API Key 管理' }} />
             <Stack.Screen name="settings/plugins" options={{ headerShown: false, title: '插件管理' }} />
             <Stack.Screen name="settings/mcp" options={{ headerShown: false, title: 'MCP 服务' }} />
+            <Stack.Screen name="settings/data-import" options={{ headerShown: false, title: '数据导入' }} />
+            <Stack.Screen name="settings/plugin-config" options={{ headerShown: false, title: '插件配置' }} />
             <Stack.Screen name="profile/edit" options={{ headerShown: false, title: '编辑个人信息' }} />
             <Stack.Screen name="profile/settings" options={{ headerShown: false, title: '设置' }} />
             <Stack.Screen name="profile/about" options={{ headerShown: false, title: '关于' }} />

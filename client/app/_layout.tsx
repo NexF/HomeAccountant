@@ -149,6 +149,7 @@ function RootLayoutNav() {
             <Stack.Screen name="settings/mcp" options={{ headerShown: false, title: 'MCP 服务' }} />
             <Stack.Screen name="profile/edit" options={{ headerShown: false, title: '编辑个人信息' }} />
             <Stack.Screen name="profile/settings" options={{ headerShown: false, title: '设置' }} />
+            <Stack.Screen name="profile/about" options={{ headerShown: false, title: '关于' }} />
           </Stack>
         </View>
       </View>

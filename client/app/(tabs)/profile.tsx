@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useProfileNavStore } from '@/stores/profileNavStore';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
-import { MenuItem, EditProfilePane, SettingsPane, styles } from '@/features/profile';
+import { MenuItem, EditProfilePane, SettingsPane, AboutPane, styles } from '@/features/profile';
 import type { DetailPane } from '@/features/profile';
 import { AccountsPane } from '@/features/account';
 import { AssetsPane } from '@/features/asset';
@@ -140,7 +140,12 @@ export default function ProfileScreen() {
           color={Colors.neutral}
           onPress={() => handleMenuPress('settings', '/profile/settings')}
         />
-        <MenuItem icon="info-circle" label="关于" color={Colors.neutral} />
+        <MenuItem
+          icon="info-circle"
+          label="关于"
+          color={Colors.neutral}
+          onPress={() => handleMenuPress('about', '/profile/about')}
+        />
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.card }]}>
@@ -198,6 +203,7 @@ export default function ProfileScreen() {
         <View style={styles.desktopDetail}>
           {activeDetail === 'edit-profile' && <EditProfilePane />}
           {activeDetail === 'settings' && <SettingsPane />}
+          {activeDetail === 'about' && <AboutPane />}
           {activeDetail === 'accounts' && <AccountsPane />}
           {activeDetail === 'assets' && <AssetsPane />}
           {activeDetail === 'loans' && <LoansPane />}

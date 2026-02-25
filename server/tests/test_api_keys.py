@@ -118,6 +118,7 @@ class TestListApiKeys:
         resp = await client.post("/auth/register", json={
             "email": "other@example.com",
             "password": "password123",
+            "invite_code": "TEST01",
         })
         other_token = resp.json()["token"]["access_token"]
         other_headers = {"Authorization": f"Bearer {other_token}"}

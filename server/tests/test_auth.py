@@ -20,6 +20,7 @@ class TestRegister:
             "email": "new@example.com",
             "password": "123456",
             "nickname": "新用户",
+            "invite_code": "TEST01",
         })
         assert resp.status_code == 201
         data = resp.json()
@@ -33,7 +34,7 @@ class TestRegister:
     @pytest.mark.asyncio
     async def test_register_duplicate_email(self, client: AsyncClient):
         """重复邮箱注册 → 409"""
-        payload = {"email": "dup@example.com", "password": "123456"}
+        payload = {"email": "dup@example.com", "password": "123456", "invite_code": "TEST01"}
         await client.post("/auth/register", json=payload)
         resp = await client.post("/auth/register", json=payload)
         assert resp.status_code == 409
@@ -44,6 +45,7 @@ class TestRegister:
         resp = await client.post("/auth/register", json={
             "email": "short@example.com",
             "password": "123",
+            "invite_code": "TEST01",
         })
         assert resp.status_code == 422
 
@@ -53,6 +55,7 @@ class TestRegister:
         resp = await client.post("/auth/register", json={
             "email": "not-an-email",
             "password": "123456",
+            "invite_code": "TEST01",
         })
         assert resp.status_code == 422
 
@@ -62,6 +65,7 @@ class TestRegister:
         resp = await client.post("/auth/register", json={
             "email": "bookcheck@example.com",
             "password": "123456",
+            "invite_code": "TEST01",
         })
         token = resp.json()["token"]["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
@@ -73,6 +77,50 @@ class TestRegister:
         assert books[0]["name"] == "个人账本"
 
 
+class TestInviteCode:
+
+    @pytest.mark.asyncio
+    async def test_wrong_invite_code(self, client: AsyncClient):
+        """错误邀请码 → 403"""
+        resp = await client.post("/auth/register", json={
+            "email": "wrong@example.com",
+            "password": "123456",
+            "invite_code": "WRONG1",
+        })
+        assert resp.status_code == 403
+        assert "邀请码无效" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_empty_invite_code(self, client: AsyncClient):
+        """空邀请码 → 422"""
+        resp = await client.post("/auth/register", json={
+            "email": "empty@example.com",
+            "password": "123456",
+            "invite_code": "",
+        })
+        assert resp.status_code == 422
+        assert "邀请码" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_invite_code_case_insensitive(self, client: AsyncClient):
+        """邀请码不区分大小写"""
+        resp = await client.post("/auth/register", json={
+            "email": "case@example.com",
+            "password": "123456",
+            "invite_code": "test01",
+        })
+        assert resp.status_code == 201
+
+    @pytest.mark.asyncio
+    async def test_missing_invite_code_field(self, client: AsyncClient):
+        """不传 invite_code 字段 → 默认空字符串 → 422"""
+        resp = await client.post("/auth/register", json={
+            "email": "nofield@example.com",
+            "password": "123456",
+        })
+        assert resp.status_code == 422
+
+
 class TestLogin:
 
     @pytest.mark.asyncio
@@ -81,6 +129,7 @@ class TestLogin:
         await client.post("/auth/register", json={
             "email": "login@example.com",
             "password": "password123",
+            "invite_code": "TEST01",
         })
         resp = await client.post("/auth/login", json={
             "email": "login@example.com",
@@ -97,6 +146,7 @@ class TestLogin:
         await client.post("/auth/register", json={
             "email": "wrongpw@example.com",
             "password": "password123",
+            "invite_code": "TEST01",
         })
         resp = await client.post("/auth/login", json={
             "email": "wrongpw@example.com",

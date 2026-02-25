@@ -9,6 +9,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6, max_length=128, description="密码（6-128位）")
     nickname: str | None = Field(None, max_length=100, description="昵称")
+    invite_code: str = Field("", max_length=6, description="邀请码")
 
 
 class LoginRequest(BaseModel):

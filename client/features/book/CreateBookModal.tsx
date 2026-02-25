@@ -198,16 +198,15 @@ const styles = StyleSheet.create({
   },
   btnRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     gap: 12,
     marginTop: 8,
   },
   btn: {
-    paddingHorizontal: 24,
+    flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 80,
   },
 });

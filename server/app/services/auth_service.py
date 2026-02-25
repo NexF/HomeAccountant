@@ -26,8 +26,15 @@ async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     return result.scalar_one_or_none()
 
 
-async def register_user(db: AsyncSession, email: str, password: str, nickname: str | None = None) -> User:
+async def register_user(db: AsyncSession, email: str, password: str, nickname: str | None = None, invite_code: str = "") -> User:
     """注册新用户，返回 User 实例。邮箱重复时抛 AuthError。"""
+    # 邀请码校验
+    if settings.INVITE_CODE:
+        if not invite_code:
+            raise AuthError("请输入邀请码", status_code=422)
+        if invite_code.upper() != settings.INVITE_CODE.upper():
+            raise AuthError("邀请码无效", status_code=403)
+
     existing = await get_user_by_email(db, email)
     if existing:
         raise AuthError("该邮箱已被注册", status_code=409)

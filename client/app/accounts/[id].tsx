@@ -570,6 +570,7 @@ const modalStyles = StyleSheet.create({
   },
   btnRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: 12,
     marginTop: 8,
   },

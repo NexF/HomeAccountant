@@ -11,4 +11,5 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
       - CORS_ORIGINS=${CORS_ORIGINS:-["*"]}
       - DEBUG=false
+      - INVITE_CODE=ggb666
     restart: unless-stopped

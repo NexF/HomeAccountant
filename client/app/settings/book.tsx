@@ -426,13 +426,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalMsg: { fontSize: 14, lineHeight: 20, marginBottom: 20 },
-  modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
   modalBtn: {
-    paddingHorizontal: 24,
+    flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 80,
   },
 });

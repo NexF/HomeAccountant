@@ -494,15 +494,14 @@ const s = StyleSheet.create({
   },
   modalBtnRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     gap: 12,
   },
   modalBtn: {
-    paddingHorizontal: 24,
+    flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 80,
   },
 });

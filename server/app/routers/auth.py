@@ -28,7 +28,7 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """邮箱 + 密码注册，返回用户信息和 JWT Token"""
     try:
-        user = await register_user(db, body.email, body.password, body.nickname)
+        user = await register_user(db, body.email, body.password, body.nickname, body.invite_code)
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
 

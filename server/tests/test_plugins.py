@@ -176,6 +176,7 @@ class TestListPlugins:
         resp = await client.post("/auth/register", json={
             "email": "other_plugin@example.com",
             "password": "password123",
+            "invite_code": "TEST01",
         })
         other_token = resp.json()["token"]["access_token"]
         other_headers = {"Authorization": f"Bearer {other_token}"}
@@ -217,6 +218,7 @@ class TestGetPlugin:
         resp = await client.post("/auth/register", json={
             "email": "other_get@example.com",
             "password": "password123",
+            "invite_code": "TEST01",
         })
         other_token = resp.json()["token"]["access_token"]
         other_headers = {"Authorization": f"Bearer {other_token}"}
@@ -377,6 +379,7 @@ class TestDeletePlugin:
         resp = await client.post("/auth/register", json={
             "email": "other_delete@example.com",
             "password": "password123",
+            "invite_code": "TEST01",
         })
         other_token = resp.json()["token"]["access_token"]
         other_headers = {"Authorization": f"Bearer {other_token}"}

@@ -25,6 +25,7 @@ export default function RegisterScreen() {
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
 
   const handleRegister = async () => {
@@ -41,11 +42,16 @@ export default function RegisterScreen() {
       setError('两次密码输入不一致');
       return;
     }
+    if (!inviteCode.trim()) {
+      setError('请输入邀请码');
+      return;
+    }
     try {
       await register({
         email: email.trim(),
         password,
         nickname: nickname.trim() || undefined,
+        invite_code: inviteCode.trim(),
       });
     } catch (e) {
       const msg =
@@ -153,6 +159,26 @@ export default function RegisterScreen() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>邀请码</Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  backgroundColor: colorScheme === 'dark' ? '#374151' : '#F3F4F6',
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="请输入6位邀请码"
+              placeholderTextColor={colors.textSecondary}
+              value={inviteCode}
+              onChangeText={setInviteCode}
+              autoCapitalize="none"
+              maxLength={6}
             />
           </View>
 

@@ -18,6 +18,10 @@ from app.models.loan import Loan
 from app.models.journal import JournalEntry, JournalLine  # noqa: F401
 from app.utils.security import hash_password, create_access_token
 from app.utils.seed import seed_accounts_for_book
+from app.config import settings
+
+# 测试环境设置固定邀请码
+settings.INVITE_CODE = "TEST01"
 
 
 # ──────────── 事件循环 ────────────

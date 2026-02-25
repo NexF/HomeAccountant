@@ -24,6 +24,7 @@ export type RegisterParams = {
   email: string;
   password: string;
   nickname?: string;
+  invite_code: string;
 };
 
 export type LoginParams = {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, Alert, Platform, ScrollView } from 'react-native';
+import { Pressable, Modal, ScrollView, StyleSheet } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -29,6 +29,7 @@ export default function ProfileScreen() {
   const { isDesktop } = useBreakpoint();
 
   const [activeDetail, setActiveDetail] = useState<DetailPane>('none');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const focusedRef = useRef(false);
 
   // 追踪 tab 聚焦/失焦状态，聚焦时处理 pendingPane 或重置
@@ -68,16 +69,12 @@ export default function ProfileScreen() {
   }, [isDesktop]);
 
   const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('确定要退出登录吗？')) {
-        logout();
-      }
-    } else {
-      Alert.alert('退出登录', '确定要退出登录吗？', [
-        { text: '取消', style: 'cancel' },
-        { text: '退出', style: 'destructive', onPress: logout },
-      ]);
-    }
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    logout();
   };
 
   const handleMenuPress = (pane: DetailPane, mobileRoute: string) => {
@@ -157,6 +154,41 @@ export default function ProfileScreen() {
     </ScrollView>
   );
 
+  const logoutModal = (
+    <Modal
+      visible={showLogoutConfirm}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowLogoutConfirm(false)}
+    >
+      <Pressable style={ms.overlay} onPress={() => setShowLogoutConfirm(false)}>
+        <Pressable
+          style={[ms.content, { backgroundColor: colors.card }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <Text style={[ms.title, { color: colors.text }]}>退出登录</Text>
+          <Text style={[ms.msg, { color: colors.textSecondary }]}>
+            确定要退出登录吗？
+          </Text>
+          <View style={ms.btnRow}>
+            <Pressable
+              style={[ms.btn, { backgroundColor: colors.border }]}
+              onPress={() => setShowLogoutConfirm(false)}
+            >
+              <Text style={{ color: colors.text, fontWeight: '600' }}>取消</Text>
+            </Pressable>
+            <Pressable
+              style={[ms.btn, { backgroundColor: '#EF4444' }]}
+              onPress={confirmLogout}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '600' }}>退出</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
   if (isDesktop) {
     return (
       <View style={styles.desktopContainer}>
@@ -187,9 +219,57 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
+        {logoutModal}
       </View>
     );
   }
 
-  return <View style={styles.container}>{menuContent}</View>;
+  return (
+    <View style={styles.container}>
+      {menuContent}
+      {logoutModal}
+    </View>
+  );
 }
+
+const ms = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    width: '85%',
+    maxWidth: 420,
+    borderRadius: 14,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  msg: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

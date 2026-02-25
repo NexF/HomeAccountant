@@ -20,6 +20,7 @@ import { ApiKeysPane } from '@/features/api-key';
 import { PluginsPane } from '@/features/plugin';
 import { MCPPane } from '@/features/mcp';
 import { BookSettingsPane } from '@/features/book';
+import { DataImportPane } from '@/features/import';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -130,7 +131,7 @@ export default function ProfileScreen() {
         <MenuItem icon="building" label="固定资产" onPress={() => handleMenuPress('assets', '/assets')} />
         <MenuItem icon="credit-card" label="贷款管理" onPress={() => handleMenuPress('loans', '/loans')} />
         <MenuItem icon="pie-chart" label="预算设置" onPress={() => handleMenuPress('budget', '/settings/budget')} />
-        <MenuItem icon="download" label="数据导入/导出" hint="即将推出" />
+        <MenuItem icon="download" label="数据导入/导出" onPress={() => handleMenuPress('data-import', '/settings/data-import')} />
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.card }]}>
@@ -216,6 +217,7 @@ export default function ProfileScreen() {
               onBookDeleted={() => setActiveDetail('none')}
             />
           )}
+          {activeDetail === 'data-import' && <DataImportPane />}
           {activeDetail === 'none' && (
             <View style={styles.detailEmpty}>
               <FontAwesome name="user-circle" size={48} color={colors.textSecondary} />

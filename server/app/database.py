@@ -36,6 +36,8 @@ async def init_db():
         await _migrate_journal_external_id(conn)
         # v0.4.0: users 表新增 is_active / last_active_at 字段
         await _migrate_users_admin(conn)
+        # v0.4.1: plugins 表新增 config_schema / config 字段
+        await _migrate_plugin_config(conn)
 
 
 async def _migrate_budgets(conn):
@@ -86,6 +88,22 @@ async def _migrate_users_admin(conn):
     migrations = [
         ("is_active", "ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1"),
         ("last_active_at", "ALTER TABLE users ADD COLUMN last_active_at TIMESTAMP"),
+    ]
+    for col_name, sql in migrations:
+        if col_name not in columns:
+            await conn.execute(text(sql))
+
+
+async def _migrate_plugin_config(conn):
+    """为 plugins 表补充 v0.4.1 新增的 config_schema 和 config 列"""
+    from sqlalchemy import text
+
+    result = await conn.execute(text("PRAGMA table_info(plugins)"))
+    columns = {row[1] for row in result.fetchall()}
+
+    migrations = [
+        ("config_schema", "ALTER TABLE plugins ADD COLUMN config_schema TEXT"),
+        ("config", "ALTER TABLE plugins ADD COLUMN config TEXT"),
     ]
     for col_name, sql in migrations:
         if col_name not in columns:

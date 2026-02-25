@@ -131,6 +131,14 @@ export default function PluginsScreen() {
                   <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
                     {plugin.name}
                   </Text>
+                  {plugin.has_config && (
+                    <View style={[styles.configBadge, { backgroundColor: plugin.is_configured ? '#10B98115' : '#F59E0B15' }]}>
+                      <View style={[styles.configDot, { backgroundColor: plugin.is_configured ? '#10B981' : '#F59E0B' }]} />
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: plugin.is_configured ? '#10B981' : '#F59E0B' }}>
+                        {plugin.is_configured ? '已配置' : '待配置'}
+                      </Text>
+                    </View>
+                  )}
                   <View style={[styles.statusBadge, { backgroundColor: status.color + '15' }]}>
                     <View style={[styles.statusDot, { backgroundColor: status.color }]} />
                     <Text style={[styles.statusText, { color: status.color }]}>
@@ -180,6 +188,14 @@ export default function PluginsScreen() {
 
                 {/* Actions */}
                 <View style={styles.cardActions}>
+                  {plugin.has_config && (
+                    <Pressable
+                      style={[styles.actionBtn, { backgroundColor: Colors.primary + '15' }]}
+                      onPress={() => router.push(`/settings/plugin-config?id=${plugin.id}` as any)}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.primary }}>配置</Text>
+                    </Pressable>
+                  )}
                   <Pressable
                     style={[styles.actionBtn, { backgroundColor: '#EF444415' }]}
                     onPress={() => setDeleteTarget(plugin)}
@@ -264,6 +280,15 @@ const styles = StyleSheet.create({
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 11, fontWeight: '600' },
+  configBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 4,
+  },
+  configDot: { width: 6, height: 6, borderRadius: 3 },
   cardInfo: { flexDirection: 'row', justifyContent: 'space-between' },
   cardInfoText: { fontSize: 12 },
   errorBox: {

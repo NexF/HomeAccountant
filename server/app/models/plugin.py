@@ -32,6 +32,13 @@ class Plugin(Base):
     last_sync_status: Mapped[str] = mapped_column(String(10), default="idle")
     last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     sync_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # v0.4.1 新增
+    config_schema: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="插件声明的配置结构（JSON 字符串）"
+    )
+    config: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="用户填写的配置值（JSON 字符串）"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

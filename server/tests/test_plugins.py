@@ -4,12 +4,17 @@
 - POST /plugins                      注册插件（API Key 认证）
 - GET /plugins                       列出插件（JWT / API Key）
 - GET /plugins/{id}                  获取插件详情
+- PUT /plugins/{id}/config           更新插件配置（JWT 认证）  ← v0.4.1
 - PUT /plugins/{id}/status           更新同步状态（API Key 认证）
 - DELETE /plugins/{id}               删除插件（JWT 认证）
 
 覆盖场景：
 - 插件注册（新建 + 幂等更新）
+- v0.4.1: 注册时上报 config_schema
 - 列表 & 详情
+- v0.4.1: 插件配置更新（含必填/类型/select/account_select 校验）
+- v0.4.1: 重复注册不覆盖已有 config
+- v0.4.1: 列表返回 has_config / is_configured
 - 状态上报（running / success / failed）
 - 删除
 - 用户隔离
@@ -386,3 +391,534 @@ class TestDeletePlugin:
 
         resp = await client.delete(f"/plugins/{plugin_id}", headers=other_headers)
         assert resp.status_code == 404
+
+
+# ══════════════════════════════════════════════════════════════
+# v0.4.1  插件配置相关测试
+# ══════════════════════════════════════════════════════════════
+
+
+SAMPLE_CONFIG_SCHEMA = {
+    "fields": [
+        {"key": "default_expense", "type": "account_select", "label": "默认支出科目", "required": True},
+        {"key": "default_income", "type": "account_select", "label": "默认收入科目", "required": True},
+        {"key": "mode", "type": "select", "label": "同步模式", "required": False,
+         "options": [{"label": "增量", "value": "incremental"}, {"label": "全量", "value": "full"}],
+         "default": "incremental"},
+        {"key": "threshold", "type": "number", "label": "最小金额", "required": False},
+        {"key": "auto_tag", "type": "boolean", "label": "自动标签", "required": False},
+        {"key": "note", "type": "string", "label": "备注", "required": False},
+    ]
+}
+
+
+@pytest_asyncio.fixture
+async def plugin_with_schema_data():
+    """带 config_schema 的插件注册请求体"""
+    return {
+        "name": "微信账单同步-配置版",
+        "type": "entry",
+        "description": "带配置的插件",
+        "config_schema": SAMPLE_CONFIG_SCHEMA,
+    }
+
+
+@pytest_asyncio.fixture
+async def registered_plugin_with_schema(client: AsyncClient, api_key_and_headers, plugin_with_schema_data):
+    """注册一个带 config_schema 的插件"""
+    _, api_headers = api_key_and_headers
+    resp = await client.post("/plugins", json=plugin_with_schema_data, headers=api_headers)
+    assert resp.status_code == 201
+    return resp.json(), api_headers
+
+
+# ──────────── 注册时上报 config_schema ────────────
+
+
+class TestRegisterWithConfigSchema:
+
+    @pytest.mark.asyncio
+    async def test_register_with_config_schema(
+        self, client: AsyncClient, api_key_and_headers, plugin_with_schema_data
+    ):
+        """注册时带 config_schema → 详情中返回 config_schema"""
+        _, api_headers = api_key_and_headers
+        resp = await client.post("/plugins", json=plugin_with_schema_data, headers=api_headers)
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["config_schema"] is not None
+        assert len(data["config_schema"]["fields"]) == 6
+        assert data["has_config"] is True
+        assert data["is_configured"] is False  # 还没填 config
+
+    @pytest.mark.asyncio
+    async def test_register_without_config_schema(
+        self, client: AsyncClient, api_key_and_headers
+    ):
+        """注册时不带 config_schema → has_config=False"""
+        _, api_headers = api_key_and_headers
+        resp = await client.post("/plugins", json={
+            "name": "无配置插件", "type": "entry"
+        }, headers=api_headers)
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["config_schema"] is None
+        assert data["config"] is None
+        assert data["has_config"] is False
+        assert data["is_configured"] is False
+
+    @pytest.mark.asyncio
+    async def test_idempotent_register_preserves_config(
+        self, client: AsyncClient, auth_headers, api_key_and_headers, plugin_with_schema_data,
+        test_book,
+    ):
+        """重复注册不覆盖已有 config"""
+        _, api_headers = api_key_and_headers
+
+        # 1. 注册
+        resp = await client.post("/plugins", json=plugin_with_schema_data, headers=api_headers)
+        assert resp.status_code == 201
+        plugin_id = resp.json()["id"]
+
+        # 2. 获取科目用于填充 config
+        from sqlalchemy import select
+        from app.models.account import Account
+        async with TestSessionLocal() as db:
+            result = await db.execute(
+                select(Account).where(
+                    Account.book_id == test_book.id,
+                    Account.code == "5001",
+                )
+            )
+            expense_acct = result.scalar_one()
+            result = await db.execute(
+                select(Account).where(
+                    Account.book_id == test_book.id,
+                    Account.code == "4005",
+                )
+            )
+            income_acct = result.scalar_one()
+
+        # 3. 更新 config
+        config_payload = {
+            "config": {
+                "default_expense": expense_acct.id,
+                "default_income": income_acct.id,
+            }
+        }
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json=config_payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["config"]["default_expense"] == expense_acct.id
+
+        # 4. 再次注册同名插件（可能更新 schema）
+        updated_schema = {**plugin_with_schema_data, "config_schema": {
+            "fields": [
+                {"key": "default_expense", "type": "account_select", "label": "默认支出科目", "required": True},
+                {"key": "new_field", "type": "string", "label": "新字段", "required": False},
+            ]
+        }}
+        resp = await client.post("/plugins", json=updated_schema, headers=api_headers)
+        assert resp.status_code == 200  # 幂等更新
+
+        # 5. 检查 config 仍然保留
+        resp = await client.get(f"/plugins/{plugin_id}", headers=auth_headers)
+        data = resp.json()
+        assert data["config"] is not None
+        assert data["config"]["default_expense"] == expense_acct.id
+        # schema 已更新
+        field_keys = [f["key"] for f in data["config_schema"]["fields"]]
+        assert "new_field" in field_keys
+
+
+# ──────────── 更新插件配置 ────────────
+
+
+class TestUpdatePluginConfig:
+
+    @pytest.mark.asyncio
+    async def test_update_config_basic(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """正常更新 config"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        from sqlalchemy import select
+        from app.models.account import Account
+        async with TestSessionLocal() as db:
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "5001")
+            )
+            expense_acct = result.scalar_one()
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "4005")
+            )
+            income_acct = result.scalar_one()
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {
+                "default_expense": expense_acct.id,
+                "default_income": income_acct.id,
+                "mode": "full",
+                "threshold": 0.01,
+                "auto_tag": True,
+                "note": "测试备注",
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["config"]["default_expense"] == expense_acct.id
+        assert data["config"]["default_income"] == income_acct.id
+        assert data["config"]["mode"] == "full"
+        assert data["config"]["threshold"] == 0.01
+        assert data["config"]["auto_tag"] is True
+        assert data["config"]["note"] == "测试备注"
+        assert data["is_configured"] is True
+
+    @pytest.mark.asyncio
+    async def test_update_config_required_missing(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """必填字段缺失 → 422"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {"mode": "full"}},  # 缺少 default_expense & default_income
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert detail["message"] == "配置校验失败"
+        error_keys = [e["key"] for e in detail["errors"]]
+        assert "default_expense" in error_keys
+        assert "default_income" in error_keys
+
+    @pytest.mark.asyncio
+    async def test_update_config_required_empty_string(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """必填字段为空字符串 → 422"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {"default_expense": "", "default_income": ""}},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_update_config_number_type_validation(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """number 字段传字符串 → 422"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        from sqlalchemy import select
+        from app.models.account import Account
+        async with TestSessionLocal() as db:
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "5001")
+            )
+            expense_acct = result.scalar_one()
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "4005")
+            )
+            income_acct = result.scalar_one()
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {
+                "default_expense": expense_acct.id,
+                "default_income": income_acct.id,
+                "threshold": "not_a_number",
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        error_keys = [e["key"] for e in resp.json()["detail"]["errors"]]
+        assert "threshold" in error_keys
+
+    @pytest.mark.asyncio
+    async def test_update_config_boolean_type_validation(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """boolean 字段传字符串 → 422"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        from sqlalchemy import select
+        from app.models.account import Account
+        async with TestSessionLocal() as db:
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "5001")
+            )
+            expense_acct = result.scalar_one()
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "4005")
+            )
+            income_acct = result.scalar_one()
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {
+                "default_expense": expense_acct.id,
+                "default_income": income_acct.id,
+                "auto_tag": "yes",
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        error_keys = [e["key"] for e in resp.json()["detail"]["errors"]]
+        assert "auto_tag" in error_keys
+
+    @pytest.mark.asyncio
+    async def test_update_config_select_out_of_range(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """select 字段超出允许范围 → 422"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        from sqlalchemy import select
+        from app.models.account import Account
+        async with TestSessionLocal() as db:
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "5001")
+            )
+            expense_acct = result.scalar_one()
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "4005")
+            )
+            income_acct = result.scalar_one()
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {
+                "default_expense": expense_acct.id,
+                "default_income": income_acct.id,
+                "mode": "invalid_mode",
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        error_keys = [e["key"] for e in resp.json()["detail"]["errors"]]
+        assert "mode" in error_keys
+
+    @pytest.mark.asyncio
+    async def test_update_config_account_select_nonexistent(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """account_select 字段引用不存在的科目 → 422"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {
+                "default_expense": str(uuid.uuid4()),  # 不存在的科目
+                "default_income": str(uuid.uuid4()),
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        error_keys = [e["key"] for e in resp.json()["detail"]["errors"]]
+        assert "default_expense" in error_keys
+        assert "default_income" in error_keys
+
+    @pytest.mark.asyncio
+    async def test_update_config_no_schema_plugin(
+        self, client: AsyncClient, auth_headers, registered_plugin
+    ):
+        """无 config_schema 的插件更新配置 → 400"""
+        plugin_data, _ = registered_plugin
+        plugin_id = plugin_data["id"]
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {"key": "value"}},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_update_config_requires_jwt(
+        self, client: AsyncClient, registered_plugin_with_schema
+    ):
+        """API Key 不能更新配置 → 401"""
+        plugin_data, api_headers = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {"key": "value"}},
+            headers=api_headers,
+        )
+        assert resp.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_update_config_default_value(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """非必填字段未提供 → 使用 default 值"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        from sqlalchemy import select
+        from app.models.account import Account
+        async with TestSessionLocal() as db:
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "5001")
+            )
+            expense_acct = result.scalar_one()
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "4005")
+            )
+            income_acct = result.scalar_one()
+
+        # 只提供必填字段，mode 有 default="incremental"
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {
+                "default_expense": expense_acct.id,
+                "default_income": income_acct.id,
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["config"]["mode"] == "incremental"  # default
+        assert data["is_configured"] is True
+
+
+# ──────────── 插件详情返回 config_schema / config ────────────
+
+
+class TestPluginDetailConfig:
+
+    @pytest.mark.asyncio
+    async def test_detail_returns_config_schema(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema
+    ):
+        """详情接口返回完整 config_schema"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        resp = await client.get(f"/plugins/{plugin_id}", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["config_schema"] is not None
+        assert isinstance(data["config_schema"]["fields"], list)
+        assert len(data["config_schema"]["fields"]) == 6
+
+    @pytest.mark.asyncio
+    async def test_detail_returns_config_after_update(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """更新配置后，详情接口返回 config"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        from sqlalchemy import select
+        from app.models.account import Account
+        async with TestSessionLocal() as db:
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "5001")
+            )
+            expense_acct = result.scalar_one()
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "4005")
+            )
+            income_acct = result.scalar_one()
+
+        await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {
+                "default_expense": expense_acct.id,
+                "default_income": income_acct.id,
+            }},
+            headers=auth_headers,
+        )
+
+        resp = await client.get(f"/plugins/{plugin_id}", headers=auth_headers)
+        data = resp.json()
+        assert data["config"] is not None
+        assert data["config"]["default_expense"] == expense_acct.id
+        assert data["config"]["default_income"] == income_acct.id
+        assert data["is_configured"] is True
+
+
+# ──────────── 列表返回 has_config / is_configured ────────────
+
+
+class TestPluginListConfigStatus:
+
+    @pytest.mark.asyncio
+    async def test_list_has_config_true(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema
+    ):
+        """有 config_schema 的插件 → has_config=True"""
+        resp = await client.get("/plugins", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["has_config"] is True
+        assert data[0]["is_configured"] is False
+        # 列表不返回 config_schema / config 详情
+        assert "config_schema" not in data[0]
+        assert "config" not in data[0]
+
+    @pytest.mark.asyncio
+    async def test_list_has_config_false(
+        self, client: AsyncClient, auth_headers, registered_plugin
+    ):
+        """无 config_schema 的插件 → has_config=False"""
+        resp = await client.get("/plugins", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["has_config"] is False
+        assert data[0]["is_configured"] is False
+
+    @pytest.mark.asyncio
+    async def test_list_is_configured_after_config_update(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """配置完成后 → is_configured=True"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        from sqlalchemy import select
+        from app.models.account import Account
+        async with TestSessionLocal() as db:
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "5001")
+            )
+            expense_acct = result.scalar_one()
+            result = await db.execute(
+                select(Account).where(Account.book_id == test_book.id, Account.code == "4005")
+            )
+            income_acct = result.scalar_one()
+
+        await client.put(
+            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            json={"config": {
+                "default_expense": expense_acct.id,
+                "default_income": income_acct.id,
+            }},
+            headers=auth_headers,
+        )
+
+        resp = await client.get("/plugins", headers=auth_headers)
+        data = resp.json()
+        assert data[0]["is_configured"] is True

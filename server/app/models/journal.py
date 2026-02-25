@@ -45,7 +45,7 @@ class JournalEntry(Base):
         default="none",
     )
     source: Mapped[str] = mapped_column(
-        SAEnum("manual", "sync", "reconciliation", name="entry_source"),
+        SAEnum("manual", "sync", "reconciliation", "import", name="entry_source"),
         default="manual",
     )
     external_id: Mapped[str | None] = mapped_column(

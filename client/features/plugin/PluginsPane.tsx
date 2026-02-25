@@ -5,7 +5,9 @@ import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { pluginService, type PluginResponse } from '@/services/pluginService';
+import { useBookStore } from '@/stores/bookStore';
 import { styles, budgetStyles } from '@/features/profile/styles';
+import PluginConfigForm from './PluginConfigForm';
 
 const PLUGIN_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   idle: { label: '空闲', color: '#9CA3AF' },
@@ -32,11 +34,14 @@ function formatPluginDateTime(iso: string | null) {
 export default function PluginsPane() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
+  const { currentBook } = useBookStore();
 
   const [loading, setLoading] = useState(true);
   const [plugins, setPlugins] = useState<PluginResponse[]>([]);
   const [toastMsg, setToastMsg] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<PluginResponse | null>(null);
+  const [configPluginId, setConfigPluginId] = useState<string | null>(null);
+  const [configSaving, setConfigSaving] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -68,6 +73,20 @@ export default function PluginsPane() {
     }
   };
 
+  const handleSaveConfig = async (pluginId: string, config: Record<string, any>) => {
+    setConfigSaving(true);
+    try {
+      await pluginService.updateConfig(pluginId, config, currentBook?.id);
+      setConfigPluginId(null);
+      await fetchPlugins();
+      showToast('配置已保存');
+    } catch {
+      showToast('保存失败');
+    } finally {
+      setConfigSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.acctCenter}>
@@ -92,6 +111,7 @@ export default function PluginsPane() {
         ) : (
           plugins.map((plugin) => {
             const status = PLUGIN_STATUS_CONFIG[plugin.last_sync_status] ?? PLUGIN_STATUS_CONFIG.idle;
+            const isConfigOpen = configPluginId === plugin.id;
             return (
               <View
                 key={plugin.id}
@@ -101,6 +121,14 @@ export default function PluginsPane() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <FontAwesome name="puzzle-piece" size={16} color={Colors.primary} />
                   <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: colors.text }} numberOfLines={1}>{plugin.name}</Text>
+                  {plugin.has_config && (
+                    <View style={[ps.configBadge, { backgroundColor: plugin.is_configured ? '#10B98115' : '#F59E0B15' }]}>
+                      <View style={[ps.configDot, { backgroundColor: plugin.is_configured ? '#10B981' : '#F59E0B' }]} />
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: plugin.is_configured ? '#10B981' : '#F59E0B' }}>
+                        {plugin.is_configured ? '已配置' : '待配置'}
+                      </Text>
+                    </View>
+                  )}
                   <View style={[styles.directionBadge, { backgroundColor: status.color + '15' }]}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: status.color, marginRight: 4 }} />
                     <Text style={[styles.directionText, { color: status.color }]}>
@@ -138,8 +166,28 @@ export default function PluginsPane() {
                   </View>
                 )}
 
+                {/* Config Form (inline expand) */}
+                {isConfigOpen && plugin.config_schema && (
+                  <PluginConfigForm
+                    schema={plugin.config_schema}
+                    config={plugin.config}
+                    onSave={(cfg) => handleSaveConfig(plugin.id, cfg)}
+                    onCancel={() => setConfigPluginId(null)}
+                    loading={configSaving}
+                    bookId={currentBook?.id}
+                  />
+                )}
+
                 {/* Actions */}
                 <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {plugin.has_config && !isConfigOpen && (
+                    <Pressable
+                      style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: Colors.primary + '15' }}
+                      onPress={() => setConfigPluginId(plugin.id)}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.primary }}>配置</Text>
+                    </Pressable>
+                  )}
                   <Pressable
                     style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: '#EF444415' }}
                     onPress={() => setDeleteTarget(plugin)}
@@ -182,3 +230,19 @@ export default function PluginsPane() {
     </View>
   );
 }
+
+const ps = StyleSheet.create({
+  configBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 4,
+  },
+  configDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+});

@@ -8,6 +8,7 @@ from app.models.budget import Budget
 from app.models.sync import DataSource, BalanceSnapshot, ExternalTransaction
 from app.models.api_key import ApiKey
 from app.models.plugin import Plugin
+from app.models.import_task import ImportTask
 
 __all__ = [
     "User",
@@ -24,4 +25,5 @@ __all__ = [
     "ExternalTransaction",
     "ApiKey",
     "Plugin",
+    "ImportTask",
 ]

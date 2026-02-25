@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -9,7 +9,9 @@ from app.models.user import User
 from app.schemas.plugin import (
     BatchEntryRequest,
     BatchEntryResponse,
+    PluginConfigUpdateRequest,
     PluginCreateRequest,
+    PluginListResponse,
     PluginResponse,
     PluginStatusUpdateRequest,
 )
@@ -35,12 +37,14 @@ async def register_plugin(
     return plugin
 
 
-@router.get("", response_model=list[PluginResponse])
+@router.get("", response_model=list[PluginListResponse])
 async def list_plugins(
     user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
-    """列出当前用户的所有插件。支持 JWT 或 API Key 认证。"""
+    """列出当前用户的所有插件。支持 JWT 或 API Key 认证。
+    返回 PluginListResponse（含 has_config / is_configured，不含 config_schema / config 详情）。
+    """
     return await plugin_service.list_plugins(db, user.id)
 
 
@@ -50,8 +54,24 @@ async def get_plugin(
     user: User = Depends(get_current_user_flexible),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取单个插件详情。支持 JWT 或 API Key 认证。"""
+    """获取单个插件详情（含完整 config_schema / config）。支持 JWT 或 API Key 认证。"""
     return await plugin_service.get_plugin(db, plugin_id, user.id)
+
+
+@router.put("/{plugin_id}/config", response_model=PluginResponse)
+async def update_config(
+    plugin_id: str,
+    body: PluginConfigUpdateRequest,
+    book_id: str | None = Query(None, description="账本 ID，用于 account_select 类型字段校验"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新插件配置。仅支持 JWT 认证。
+    配置值会根据 config_schema 进行校验（必填、类型、select 范围、account_select 存在性）。
+    """
+    return await plugin_service.update_plugin_config(
+        db, plugin_id, user.id, body.config, book_id
+    )
 
 
 @router.put("/{plugin_id}/status", response_model=PluginResponse)

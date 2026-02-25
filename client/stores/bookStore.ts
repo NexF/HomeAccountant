@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { bookService, type BookResponse } from '@/services/bookService';
+
+const STORAGE_KEY = 'selected_book_id';
 
 type BookState = {
   books: BookResponse[];
@@ -26,8 +29,10 @@ export const useBookStore = create<BookState>((set, get) => ({
     try {
       const { data } = await bookService.getBooks();
       const current = get().currentBook;
-      const matched = current ? data.find((b) => b.id === current.id) : null;
+      const savedId = current?.id ?? (await AsyncStorage.getItem(STORAGE_KEY));
+      const matched = savedId ? data.find((b) => b.id === savedId) : null;
       const selectedBook = matched ?? data[0] ?? null;
+      if (selectedBook) AsyncStorage.setItem(STORAGE_KEY, selectedBook.id);
       set({
         books: data,
         currentBook: selectedBook,
@@ -40,6 +45,7 @@ export const useBookStore = create<BookState>((set, get) => ({
   },
 
   setCurrentBook: (book) => {
+    AsyncStorage.setItem(STORAGE_KEY, book.id);
     set({
       currentBook: book,
       currentRole: (book.role as 'admin' | 'member') ?? null,
@@ -62,5 +68,8 @@ export const useBookStore = create<BookState>((set, get) => ({
     await get().fetchBooks();
   },
 
-  reset: () => set({ books: [], currentBook: null, currentRole: null, isLoading: false }),
+  reset: () => {
+    AsyncStorage.removeItem(STORAGE_KEY);
+    set({ books: [], currentBook: null, currentRole: null, isLoading: false });
+  },
 }));

@@ -10,13 +10,13 @@ PRESET_ACCOUNTS: list[tuple[str, str, str, str, str, int]] = [
     # ===== 一、资产类 =====
     ("1001", "货币资金", "asset", "debit", "cash", 100),
     ("1002", "现金等价物", "asset", "debit", "money-market", 200),
-    ("1101", "应收款项", "asset", "debit", "receivable", 400),
-    ("1201", "短期投资", "asset", "debit", "stock", 500),
-    ("1301", "预付款项", "asset", "debit", "prepaid", 600),
+    ("1101", "短期投资", "asset", "debit", "stock", 300),
+    ("1201", "长期投资", "asset", "debit", "investment", 400),
+    ("1301", "应收款项", "asset", "debit", "receivable", 500),
+    ("1401", "预付款项", "asset", "debit", "prepaid", 600),
     ("1501", "固定资产", "asset", "debit", "building", 700),
     ("1502", "累计折旧", "asset", "credit", "depreciation", 710),
     ("1503", "资产减值准备", "asset", "credit", "impairment", 720),
-    ("1601", "长期投资", "asset", "debit", "investment", 800),
 
     # ===== 二、负债类 =====
     ("2001", "信用卡", "liability", "credit", "credit-card", 100),

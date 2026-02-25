@@ -463,7 +463,7 @@ class BookResponse(BaseModel):
 | 文件 | 变更 |
 |------|------|
 | `client/services/bookService.ts` | 新增成员管理、更新/删除账本 API |
-| `client/stores/bookStore.ts` | 增加 `currentRole`、切换后触发全局刷新 |
+| `client/stores/bookStore.ts` | 增加 `currentRole`、切换后触发全局刷新、AsyncStorage 持久化选中账本 ID（三端通用） |
 | `client/components/layout/Sidebar.tsx` | 集成 `BookSwitcher` |
 | `client/app/(tabs)/_layout.tsx` | 移动端集成账本切换入口 |
 | `client/app/(tabs)/profile.tsx` | 菜单增加「账本设置」项 |
@@ -557,6 +557,7 @@ class BookResponse(BaseModel):
 |------|--------|---------|
 | B-1 | 账本切换器 | Sidebar / TopBar 展示当前账本名，点击展开账本列表 |
 | B-2 | 账本切换 | 选择其他账本后，全局数据（科目、分录、报表等）切换到对应账本 |
+| B-2.1 | 账本选择记忆 | 切换账本后刷新页面（Web）或 App 重启（原生），仍保持上次选中的账本 |
 | B-3 | 创建账本 | 切换器底部「创建新账本」→ Modal 填写名称和类型 → 创建成功 → 自动切换 |
 | B-4 | 预置科目 | 新账本创建后自动包含完整预置科目体系 |
 | B-5 | 账本重命名 | 账本设置页可修改名称，仅 admin 可操作 |

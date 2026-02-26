@@ -461,8 +461,9 @@ class TestDeletePlugin:
 
 SAMPLE_CONFIG_SCHEMA = {
     "fields": [
-        {"key": "default_expense", "type": "account_select", "label": "默认支出科目", "required": True},
-        {"key": "default_income", "type": "account_select", "label": "默认收入科目", "required": True},
+        {"key": "target_book", "type": "book_select", "label": "目标账本", "required": True},
+        {"key": "default_expense", "type": "account_select", "label": "默认支出科目", "required": True, "depends_on": "target_book"},
+        {"key": "default_income", "type": "account_select", "label": "默认收入科目", "required": True, "depends_on": "target_book"},
         {"key": "mode", "type": "select", "label": "同步模式", "required": False,
          "options": [{"label": "增量", "value": "incremental"}, {"label": "全量", "value": "full"}],
          "default": "incremental"},
@@ -508,7 +509,7 @@ class TestRegisterWithConfigSchema:
         assert resp.status_code == 201
         data = resp.json()
         assert data["config_schema"] is not None
-        assert len(data["config_schema"]["fields"]) == 6
+        assert len(data["config_schema"]["fields"]) == 7
         assert data["has_config"] is True
         assert data["is_configured"] is False  # 还没填 config
 
@@ -563,12 +564,13 @@ class TestRegisterWithConfigSchema:
         # 3. 更新 config
         config_payload = {
             "config": {
+                "target_book": test_book.id,
                 "default_expense": expense_acct.id,
                 "default_income": income_acct.id,
             }
         }
         resp = await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            f"/plugins/{plugin_id}/config",
             json=config_payload,
             headers=auth_headers,
         )
@@ -578,7 +580,8 @@ class TestRegisterWithConfigSchema:
         # 4. 再次注册同名插件（可能更新 schema）
         updated_schema = {**plugin_with_schema_data, "config_schema": {
             "fields": [
-                {"key": "default_expense", "type": "account_select", "label": "默认支出科目", "required": True},
+                {"key": "target_book", "type": "book_select", "label": "目标账本", "required": True},
+                {"key": "default_expense", "type": "account_select", "label": "默认支出科目", "required": True, "depends_on": "target_book"},
                 {"key": "new_field", "type": "string", "label": "新字段", "required": False},
             ]
         }}
@@ -621,8 +624,9 @@ class TestUpdatePluginConfig:
             income_acct = result.scalar_one()
 
         resp = await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            f"/plugins/{plugin_id}/config",
             json={"config": {
+                "target_book": test_book.id,
                 "default_expense": expense_acct.id,
                 "default_income": income_acct.id,
                 "mode": "full",
@@ -651,8 +655,8 @@ class TestUpdatePluginConfig:
         plugin_id = plugin_data["id"]
 
         resp = await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
-            json={"config": {"mode": "full"}},  # 缺少 default_expense & default_income
+            f"/plugins/{plugin_id}/config",
+            json={"config": {"target_book": test_book.id, "mode": "full"}},  # 缺少 default_expense & default_income
             headers=auth_headers,
         )
         assert resp.status_code == 422
@@ -671,8 +675,8 @@ class TestUpdatePluginConfig:
         plugin_id = plugin_data["id"]
 
         resp = await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
-            json={"config": {"default_expense": "", "default_income": ""}},
+            f"/plugins/{plugin_id}/config",
+            json={"config": {"target_book": test_book.id, "default_expense": "", "default_income": ""}},
             headers=auth_headers,
         )
         assert resp.status_code == 422
@@ -698,8 +702,9 @@ class TestUpdatePluginConfig:
             income_acct = result.scalar_one()
 
         resp = await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            f"/plugins/{plugin_id}/config",
             json={"config": {
+                "target_book": test_book.id,
                 "default_expense": expense_acct.id,
                 "default_income": income_acct.id,
                 "threshold": "not_a_number",
@@ -731,8 +736,9 @@ class TestUpdatePluginConfig:
             income_acct = result.scalar_one()
 
         resp = await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            f"/plugins/{plugin_id}/config",
             json={"config": {
+                "target_book": test_book.id,
                 "default_expense": expense_acct.id,
                 "default_income": income_acct.id,
                 "auto_tag": "yes",
@@ -764,8 +770,9 @@ class TestUpdatePluginConfig:
             income_acct = result.scalar_one()
 
         resp = await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            f"/plugins/{plugin_id}/config",
             json={"config": {
+                "target_book": test_book.id,
                 "default_expense": expense_acct.id,
                 "default_income": income_acct.id,
                 "mode": "invalid_mode",
@@ -785,8 +792,9 @@ class TestUpdatePluginConfig:
         plugin_id = plugin_data["id"]
 
         resp = await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            f"/plugins/{plugin_id}/config",
             json={"config": {
+                "target_book": test_book.id,
                 "default_expense": str(uuid.uuid4()),  # 不存在的科目
                 "default_income": str(uuid.uuid4()),
             }},
@@ -849,8 +857,9 @@ class TestUpdatePluginConfig:
 
         # 只提供必填字段，mode 有 default="incremental"
         resp = await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            f"/plugins/{plugin_id}/config",
             json={"config": {
+                "target_book": test_book.id,
                 "default_expense": expense_acct.id,
                 "default_income": income_acct.id,
             }},
@@ -880,7 +889,7 @@ class TestPluginDetailConfig:
         data = resp.json()
         assert data["config_schema"] is not None
         assert isinstance(data["config_schema"]["fields"], list)
-        assert len(data["config_schema"]["fields"]) == 6
+        assert len(data["config_schema"]["fields"]) == 7
 
     @pytest.mark.asyncio
     async def test_detail_returns_config_after_update(
@@ -903,8 +912,9 @@ class TestPluginDetailConfig:
             income_acct = result.scalar_one()
 
         await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            f"/plugins/{plugin_id}/config",
             json={"config": {
+                "target_book": test_book.id,
                 "default_expense": expense_acct.id,
                 "default_income": income_acct.id,
             }},
@@ -972,8 +982,9 @@ class TestPluginListConfigStatus:
             income_acct = result.scalar_one()
 
         await client.put(
-            f"/plugins/{plugin_id}/config?book_id={test_book.id}",
+            f"/plugins/{plugin_id}/config",
             json={"config": {
+                "target_book": test_book.id,
                 "default_expense": expense_acct.id,
                 "default_income": income_acct.id,
             }},

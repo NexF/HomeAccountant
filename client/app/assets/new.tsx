@@ -25,7 +25,9 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function NewAssetScreen() {
+type NewAssetScreenProps = { onClose?: () => void };
+
+export default function NewAssetScreen({ onClose }: NewAssetScreenProps = {}) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -33,13 +35,22 @@ export default function NewAssetScreen() {
   const currentBook = useBookStore((s) => s.currentBook);
   const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { isDesktop } = useBreakpoint();
+  const isModal = !!onClose;
+
+  const goBack = () => {
+    if (isModal) {
+      onClose?.();
+    } else {
+      router.back();
+    }
+  };
 
   if (!isAdmin) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
         <FontAwesome name="lock" size={40} color={colors.textSecondary} />
         <Text style={{ color: colors.textSecondary, fontSize: 15 }}>仅管理员可新建资产</Text>
-        <Pressable onPress={() => router.back()} style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: Colors.primary, marginTop: 8 }}>
+        <Pressable onPress={goBack} style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: Colors.primary, marginTop: 8 }}>
           <Text style={{ color: Colors.primary, fontWeight: '600' }}>返回</Text>
         </Pressable>
       </View>
@@ -101,7 +112,7 @@ export default function NewAssetScreen() {
         depreciation_method: depMethod,
         depreciation_granularity: depGranularity,
       });
-      router.back();
+      goBack();
     } catch (e: any) {
       const msg = e?.response?.data?.detail ?? '创建失败';
       showAlert('错误', typeof msg === 'string' ? msg : JSON.stringify(msg));
@@ -111,11 +122,11 @@ export default function NewAssetScreen() {
   };
 
   return (
-    <View style={isDesktop ? styles.desktopOverlay : styles.container}>
-      <View style={isDesktop ? [styles.desktopModal, { backgroundColor: colors.background }] : styles.container}>
+    <View style={isModal ? styles.container : (isDesktop ? styles.desktopOverlay : styles.container)}>
+      <View style={isModal ? styles.container : (isDesktop ? [styles.desktopModal, { backgroundColor: colors.background }] : styles.container)}>
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.headerBtn}>
+          <Pressable onPress={goBack} style={styles.headerBtn}>
             <FontAwesome name="chevron-left" size={18} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>新建固定资产</Text>

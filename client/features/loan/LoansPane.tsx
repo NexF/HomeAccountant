@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useRouter } from 'expo-router';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -13,6 +12,7 @@ import { loanService, type LoanResponse, type RepaymentScheduleItem } from '@/se
 import RepaymentSchedule from '@/features/loan/RepaymentSchedule';
 import AccountPicker from '@/features/entry/AccountPicker';
 import { styles, budgetStyles } from '@/features/profile/styles';
+import NewLoanScreen from '@/app/loans/new';
 
 const LOAN_STATUS_TABS = [
   { key: null, label: '全部' },
@@ -203,14 +203,16 @@ function LoanDetailInline({
   );
 }
 
+/* ──── 贷款列表主面板 ──── */
+
 export default function LoansPane() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-  const router = useRouter();
   const currentBook = useBookStore((s) => s.currentBook);
   const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { loans, summary, isLoading, filterStatus, fetchLoans, fetchSummary, setFilterStatus } = useLoanStore();
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
+  const [showNewLoan, setShowNewLoan] = useState(false);
 
   useEffect(() => { if (currentBook) { fetchLoans(currentBook.id); fetchSummary(currentBook.id); } }, [currentBook?.id, filterStatus]);
 
@@ -218,6 +220,11 @@ export default function LoansPane() {
   const handleStatusChange = (status: string | null) => { setFilterStatus(status); };
   const handleBackFromDetail = () => { setSelectedLoanId(null); };
   const handleLoanDeleted = () => { setSelectedLoanId(null); if (currentBook) { fetchLoans(currentBook.id); fetchSummary(currentBook.id); } };
+
+  const handleNewLoanClose = () => {
+    setShowNewLoan(false);
+    if (currentBook) { fetchLoans(currentBook.id); fetchSummary(currentBook.id); }
+  };
 
   if (selectedLoanId) return <LoanDetailInline loanId={selectedLoanId} onBack={handleBackFromDetail} onDeleted={handleLoanDeleted} />;
   if (isLoading && loans.length === 0) return <View style={styles.acctCenter}><ActivityIndicator size="large" color={Colors.primary} /></View>;
@@ -227,7 +234,7 @@ export default function LoansPane() {
       <View style={[styles.detailContent, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, backgroundColor: 'transparent' }]}>
         <Text style={[styles.detailTitle, { color: colors.text, marginBottom: 0 }]}>贷款管理</Text>
         {isAdmin && (
-          <Pressable style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/loans/new' as any)}>
+          <Pressable style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]} onPress={() => setShowNewLoan(true)}>
             <FontAwesome name="plus" size={12} color="#FFF" /><Text style={styles.saveBtnText}>新建贷款</Text>
           </Pressable>
         )}
@@ -277,6 +284,41 @@ export default function LoansPane() {
           ))
         )}
       </ScrollView>
+
+      {/* 新建贷款 Modal */}
+      <Modal
+        visible={showNewLoan}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNewLoan(false)}
+      >
+        <Pressable style={loanStyles.modalOverlay} onPress={() => setShowNewLoan(false)}>
+          <Pressable style={[loanStyles.modalContent, { backgroundColor: colors.background }]} onPress={(e) => e.stopPropagation()}>
+            {showNewLoan && <NewLoanScreen onClose={handleNewLoanClose} />}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
+
+const loanStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 560,
+    height: '85%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+});

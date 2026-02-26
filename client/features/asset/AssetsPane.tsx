@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useRouter } from 'expo-router';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -13,6 +12,7 @@ import { assetService, type AssetResponse, type DepreciationRecord } from '@/ser
 import AssetCard from '@/features/asset/AssetCard';
 import DepreciationChart from '@/features/asset/DepreciationChart';
 import AccountPicker from '@/features/entry/AccountPicker';
+import NewAssetScreen from '@/app/assets/new';
 import { styles, budgetStyles } from '@/features/profile/styles';
 
 const ASSET_STATUS_TABS = [
@@ -301,11 +301,11 @@ function AssetDetailInline({
 export default function AssetsPane() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-  const router = useRouter();
   const currentBook = useBookStore((s) => s.currentBook);
   const isAdmin = useBookStore((s) => s.currentRole) === 'admin';
   const { assets, summary, isLoading, filterStatus, fetchAssets, fetchSummary, setFilterStatus } = useAssetStore();
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [showNewAsset, setShowNewAsset] = useState(false);
 
   useEffect(() => {
     if (currentBook) { fetchAssets(currentBook.id); fetchSummary(currentBook.id); }
@@ -315,6 +315,7 @@ export default function AssetsPane() {
   const handleStatusChange = (status: string | null) => { setFilterStatus(status); };
   const handleBackFromDetail = () => { setSelectedAssetId(null); };
   const handleAssetDeleted = () => { setSelectedAssetId(null); if (currentBook) { fetchAssets(currentBook.id); fetchSummary(currentBook.id); } };
+  const handleNewAssetClose = () => { setShowNewAsset(false); if (currentBook) { fetchAssets(currentBook.id); fetchSummary(currentBook.id); } };
 
   if (selectedAssetId) {
     return <AssetDetailInline assetId={selectedAssetId} onBack={handleBackFromDetail} onDeleted={handleAssetDeleted} />;
@@ -329,7 +330,7 @@ export default function AssetsPane() {
       <View style={[styles.detailContent, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, backgroundColor: 'transparent' }]}>
         <Text style={[styles.detailTitle, { color: colors.text, marginBottom: 0 }]}>固定资产</Text>
         {isAdmin && (
-          <Pressable style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/assets/new' as any)}>
+          <Pressable style={[styles.saveBtn, { backgroundColor: Colors.primary, paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', gap: 6 }]} onPress={() => setShowNewAsset(true)}>
             <FontAwesome name="plus" size={12} color="#FFF" />
             <Text style={styles.saveBtnText}>添加资产</Text>
           </Pressable>
@@ -365,6 +366,35 @@ export default function AssetsPane() {
           assets.map((asset) => <AssetCard key={asset.id} asset={asset} onPress={handleAssetPress} />)
         )}
       </ScrollView>
+
+      <Modal visible={showNewAsset} transparent animationType="fade">
+        <Pressable style={assetModalStyles.overlay} onPress={handleNewAssetClose}>
+          <View style={[assetModalStyles.content, { backgroundColor: colors.background }]} onStartShouldSetResponder={() => true}>
+            <NewAssetScreen onClose={handleNewAssetClose} />
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
+
+const assetModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    width: 560,
+    maxWidth: '90%',
+    height: '85%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+});

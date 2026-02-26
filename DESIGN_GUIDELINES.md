@@ -82,9 +82,66 @@ function LoansPane() {
 }
 ```
 
+**Modal 包裹 Screen 组件模式（新建/编辑场景）：**
+
+桌面端面板内的"新建"或"编辑"操作，统一使用 `<Modal>` 弹窗包裹对应的移动端 Screen 组件，通过 `onClose` prop 区分模态框模式与路由模式：
+
+```typescript
+// Screen 组件（如 NewLoanScreen）—— 同时支持路由模式和模态框模式
+type Props = { onClose?: () => void };
+
+export default function NewLoanScreen({ onClose }: Props = {}) {
+  const isModal = !!onClose;
+
+  const goBack = () => {
+    if (isModal) {
+      onClose?.();
+    } else {
+      router.back();
+    }
+  };
+
+  // isModal 时不渲染 desktopOverlay 等全屏样式，由父组件 Modal 控制
+  return (
+    <View style={isModal ? styles.container : styles.desktopOverlay}>
+      {/* 表单内容 */}
+    </View>
+  );
+}
+```
+
+```typescript
+// 父组件（如 LoansPane）—— 用 Modal 弹窗包裹 Screen
+const [showNewLoan, setShowNewLoan] = useState(false);
+
+const handleNewLoanClose = () => {
+  setShowNewLoan(false);
+  refresh(); // 刷新列表
+};
+
+return (
+  <>
+    {/* 列表内容 */}
+    <Modal visible={showNewLoan} transparent animationType="fade">
+      <Pressable style={styles.modalOverlay} onPress={handleNewLoanClose}>
+        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+          <NewLoanScreen onClose={handleNewLoanClose} />
+        </View>
+      </Pressable>
+    </Modal>
+  </>
+);
+```
+
+**优势：**
+- 移动端仍走路由跳转（`router.push`），不受影响
+- 桌面端在面板内弹出 Modal，不触发全局路由跳转，右侧面板不会刷新
+- Screen 组件复用，移动端和桌面端共享同一套表单逻辑
+
 **已应用此规范的模块：**
+- 记一笔（NewEntryScreen）：桌面端通过 Modal 弹窗调用，`onClose` 区分模式
 - 预算设置（BudgetPane）：编辑/删除通过 Modal 完成
-- 贷款管理（LoansPane）：列表→详情通过内联组件切换，还款/删除通过 Modal 完成
+- 贷款管理（LoansPane）：列表→详情通过内联组件切换，新建贷款/还款/删除通过 Modal 完成
 - 固定资产（AssetsPane）：列表→详情通过内联组件切换，计提折旧/处置通过内联表单完成
 - 科目管理（AccountsPane）：列表→详情通过内联组件切换，停用通过 Modal 完成
 

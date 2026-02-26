@@ -198,7 +198,7 @@ class TestSplitReconciliation:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "income",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": 1000,
                 "category_account_id": salary_id,
                 "payment_account_id": cash_id,

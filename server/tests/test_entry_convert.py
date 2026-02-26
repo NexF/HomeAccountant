@@ -44,7 +44,7 @@ async def _create_expense(client, book_id, headers, amount=100):
         f"/books/{book_id}/entries",
         json={
             "entry_type": "expense",
-            "entry_date": "2025-06-15",
+            "entry_date": "2025-06-15T10:30:00",
             "amount": amount,
             "category_account_id": food_id,
             "payment_account_id": cash_id,
@@ -68,7 +68,7 @@ async def _create_asset_purchase(client, book_id, headers, amount=5000):
         f"/books/{book_id}/entries",
         json={
             "entry_type": "asset_purchase",
-            "entry_date": "2025-06-15",
+            "entry_date": "2025-06-15T10:30:00",
             "amount": amount,
             "asset_account_id": other_asset_id,
             "payment_account_id": cash_id,
@@ -88,7 +88,7 @@ async def _create_transfer(client, book_id, headers, amount=200):
         f"/books/{book_id}/entries",
         json={
             "entry_type": "transfer",
-            "entry_date": "2025-06-15",
+            "entry_date": "2025-06-15T10:30:00",
             "amount": amount,
             "from_account_id": cash_id,
             "to_account_id": bank_id,
@@ -108,7 +108,7 @@ async def _create_income(client, book_id, headers, amount=1000):
         f"/books/{book_id}/entries",
         json={
             "entry_type": "income",
-            "entry_date": "2025-06-01",
+            "entry_date": "2025-06-01T09:00:00",
             "amount": amount,
             "category_account_id": salary_id,
             "payment_account_id": bank_id,
@@ -414,7 +414,7 @@ class TestDisallowedConversions:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "borrow",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 10000,
                 "payment_account_id": bank_id,
                 "liability_account_id": liability_id,
@@ -445,7 +445,7 @@ class TestSyncEntryConvert:
         self, client: AsyncClient, auth_headers, test_book: Book
     ):
         """sync 来源的分录也支持类型转换"""
-        from datetime import date as dt_date
+        from datetime import datetime as dt_datetime
         from tests.conftest import TestSessionLocal
         from app.models.journal import JournalEntry, JournalLine
         from app.models.user import User
@@ -462,7 +462,7 @@ class TestSyncEntryConvert:
                 id=str(uuid.uuid4()),
                 book_id=test_book.id,
                 user_id=user.id,
-                entry_date=dt_date(2025, 6, 15),
+                entry_date=dt_datetime(2025, 6, 15, 10, 30, 0),
                 entry_type="expense",
                 source="sync",
                 description="同步分录",

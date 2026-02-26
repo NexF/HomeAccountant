@@ -169,7 +169,7 @@ class TestMCPWriteTools:
         entries_data = [
             {
                 "entry_type": "expense",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": "35.50",
                 "category_account_id": accounts["5001"],
                 "payment_account_id": accounts["1001-01"],
@@ -199,7 +199,7 @@ class TestMCPWriteTools:
         entries_data = [
             {
                 "entry_type": "income",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": "8000.00",
                 "category_account_id": accounts["4001"],
                 "payment_account_id": accounts["1002-01"],
@@ -225,7 +225,7 @@ class TestMCPWriteTools:
         entries_data = [
             {
                 "entry_type": "expense",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": "20.00",
                 "category_account_id": accounts["5001"],
                 "payment_account_id": accounts["1001-01"],
@@ -335,7 +335,7 @@ class TestMCPReportsAfterEntries:
         entries_data = [
             {
                 "entry_type": "expense",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": "100.00",
                 "category_account_id": accounts["5001"],
                 "payment_account_id": accounts["1001-01"],

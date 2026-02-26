@@ -14,7 +14,6 @@
 """
 
 import uuid
-from datetime import date
 
 import pytest
 import pytest_asyncio
@@ -68,7 +67,7 @@ def _expense_item(accounts, idx=0, external_id=None):
     """构造一条费用分录"""
     item = {
         "entry_type": "expense",
-        "entry_date": "2025-06-01",
+        "entry_date": "2025-06-01T09:00:00",
         "amount": "50.00",
         "category_account_id": accounts["5001"],  # 餐饮
         "payment_account_id": accounts["1001-01"],   # 现金
@@ -83,7 +82,7 @@ def _income_item(accounts, idx=0, external_id=None):
     """构造一条收入分录"""
     item = {
         "entry_type": "income",
-        "entry_date": "2025-06-01",
+        "entry_date": "2025-06-01T09:00:00",
         "amount": "8000.00",
         "category_account_id": accounts["4001"],  # 工资
         "payment_account_id": accounts["1002-01"],   # 银行存款
@@ -98,7 +97,7 @@ def _transfer_item(accounts, idx=0, external_id=None):
     """构造一条转账分录"""
     item = {
         "entry_type": "transfer",
-        "entry_date": "2025-06-01",
+        "entry_date": "2025-06-01T09:00:00",
         "amount": "1000.00",
         "from_account_id": accounts["1002-01"],  # 银行存款
         "to_account_id": accounts["1001-01"],    # 现金
@@ -113,7 +112,7 @@ def _asset_purchase_item(accounts, idx=0, external_id=None):
     """构造一条购买资产分录（非固定资产）"""
     item = {
         "entry_type": "asset_purchase",
-        "entry_date": "2025-06-01",
+        "entry_date": "2025-06-01T09:00:00",
         "amount": "3000.00",
         "asset_account_id": accounts["1201"],     # 短期投资
         "payment_account_id": accounts["1002-01"],   # 银行存款
@@ -128,7 +127,7 @@ def _borrow_item(accounts, idx=0, external_id=None):
     """构造一条借入分录"""
     item = {
         "entry_type": "borrow",
-        "entry_date": "2025-06-01",
+        "entry_date": "2025-06-01T09:00:00",
         "amount": "5000.00",
         "payment_account_id": accounts["1002-01"],        # 银行存款
         "liability_account_id": accounts["2101"],      # 短期借款
@@ -143,7 +142,7 @@ def _repay_item(accounts, idx=0, external_id=None):
     """构造一条还款分录"""
     item = {
         "entry_type": "repay",
-        "entry_date": "2025-06-01",
+        "entry_date": "2025-06-01T09:00:00",
         "principal": "1000.00",
         "interest": "50.00",
         "liability_account_id": accounts["2101"],      # 短期借款
@@ -449,7 +448,7 @@ class TestBatchErrors:
             _expense_item(accounts, 0),
             {
                 "entry_type": "expense",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": "100.00",
                 "category_account_id": str(uuid.uuid4()),  # 不存在的科目
                 "payment_account_id": accounts["1001-01"],
@@ -474,7 +473,7 @@ class TestBatchErrors:
         entries = [
             {
                 "entry_type": "expense",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": "100.00",
                 # 缺少 category_account_id 和 payment_account_id
             },
@@ -525,7 +524,7 @@ class TestBatchErrors:
         _, api_headers = api_key_and_headers
         entries = [{
             "entry_type": "manual",
-            "entry_date": "2025-06-01",
+            "entry_date": "2025-06-01T09:00:00",
             "lines": [
                 {"account_id": accounts["5001"], "debit_amount": "100", "credit_amount": "0"},
                 {"account_id": accounts["1001-01"], "debit_amount": "0", "credit_amount": "100"},

@@ -67,7 +67,7 @@ async def _create_expense_entry(
         f"/books/{book_id}/entries",
         json={
             "entry_type": "expense",
-            "entry_date": "2025-06-01",
+            "entry_date": "2025-06-01T09:00:00",
             "amount": amount,
             "category_account_id": category_account_id,
             "payment_account_id": payment_account_id,
@@ -199,7 +199,7 @@ class TestLeafAccountConstraint:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "transfer",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": 500,
                 "from_account_id": parent.id,
                 "to_account_id": leaf.id,

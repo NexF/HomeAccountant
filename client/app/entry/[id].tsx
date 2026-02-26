@@ -201,7 +201,9 @@ export default function EntryDetailScreen() {
 
           <View style={styles.row}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>日期</Text>
-            <Text style={styles.value}>{entry.entry_date}</Text>
+            <Text style={styles.value}>
+              {entry.entry_date.replace('T', '  ').slice(0, 17)}
+            </Text>
           </View>
 
           <View style={styles.row}>

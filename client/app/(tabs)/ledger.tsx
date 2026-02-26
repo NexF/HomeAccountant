@@ -55,7 +55,7 @@ const TYPE_LABELS: Record<string, string> = {
 function groupByDate(entries: EntryResponse[]): { date: string; items: EntryResponse[] }[] {
   const map = new Map<string, EntryResponse[]>();
   for (const e of entries) {
-    const d = e.entry_date;
+    const d = e.entry_date.slice(0, 10);  // "2026-02-26T14:30:00" → "2026-02-26"
     if (!map.has(d)) map.set(d, []);
     map.get(d)!.push(e);
   }
@@ -215,7 +215,9 @@ function EntryDetailPane({
       <View style={[styles.detailCard, { backgroundColor: colors.card }]}>
         <View style={styles.detailRow}>
           <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>日期</Text>
-          <Text style={[styles.detailValue, { color: colors.text }]}>{entry.entry_date}</Text>
+          <Text style={[styles.detailValue, { color: colors.text }]}>
+            {entry.entry_date.replace('T', '  ').slice(0, 17)}
+          </Text>
         </View>
         <View style={styles.detailRow}>
           <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>摘要</Text>

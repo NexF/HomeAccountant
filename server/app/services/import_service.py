@@ -1,7 +1,7 @@
 """微信账单导入 Service"""
 
 import json
-from datetime import datetime, date as date_type
+from datetime import datetime
 from decimal import Decimal
 
 from fastapi import HTTPException, UploadFile
@@ -163,11 +163,11 @@ async def confirm_import(
             entry_date_str = row["date"]
             description = row["description"]
 
-            # 将日期字符串转为 date 对象
+            # 将日期字符串转为 datetime 对象
             try:
-                entry_date = date_type.fromisoformat(entry_date_str)
+                entry_date = datetime.fromisoformat(entry_date_str)
             except (ValueError, TypeError):
-                entry_date = datetime.strptime(entry_date_str[:10], "%Y-%m-%d").date()
+                entry_date = datetime.strptime(entry_date_str[:19], "%Y-%m-%dT%H:%M:%S")
 
             try:
                 if row["direction"] == "支出":

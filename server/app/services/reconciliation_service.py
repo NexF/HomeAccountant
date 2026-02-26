@@ -2,7 +2,7 @@
 对账服务：余额快照、差异计算、调节分录生成、确认分类、拆分
 """
 
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select, func, and_
@@ -37,7 +37,7 @@ async def _get_book_balance(
         .where(
             JournalLine.account_id == account_id,
             JournalEntry.book_id == book_id,
-            JournalEntry.entry_date <= as_of_date,
+            JournalEntry.entry_date < datetime(as_of_date.year, as_of_date.month, as_of_date.day) + timedelta(days=1),
         )
     )
     result = await db.execute(stmt)
@@ -155,7 +155,7 @@ async def create_snapshot(
         entry = JournalEntry(
             book_id=book_id,
             user_id=user_id,
-            entry_date=target_date,
+            entry_date=datetime(target_date.year, target_date.month, target_date.day),
             entry_type="reconciliation",
             description=f"对账调节：{account.name}",
             source="reconciliation",
@@ -212,7 +212,7 @@ async def get_pending_reconciliations(
             JournalEntry.entry_type == "reconciliation",
             JournalEntry.reconciliation_status == "pending",
         )
-        .order_by(JournalEntry.entry_date.desc(), JournalEntry.created_at.desc())
+        .order_by(JournalEntry.entry_date.desc())
     )
     result = await db.execute(stmt)
     entries = result.scalars().all()

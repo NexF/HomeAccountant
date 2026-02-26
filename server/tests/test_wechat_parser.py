@@ -99,7 +99,7 @@ class TestNormalParsing:
         result = parse_wechat_xlsx(content)
 
         assert len(result) == 2
-        assert result[0]["date"] == "2026-02-24"
+        assert result[0]["date"] == "2026-02-24T12:00:00"
         assert result[0]["direction"] == "支出"
         assert result[1]["direction"] == "收入"
 
@@ -333,13 +333,13 @@ class TestDateParsing:
         """标准日期时间格式 YYYY-MM-DD HH:MM:SS"""
         content = _build_wechat_xlsx([_make_row(time="2026-02-24 17:30:00")])
         result = parse_wechat_xlsx(content)
-        assert result[0]["date"] == "2026-02-24"
+        assert result[0]["date"] == "2026-02-24T17:30:00"
 
     def test_date_only_fallback(self):
-        """非标准格式时截取前10字符作为 fallback"""
+        """非标准格式时截取前10字符并补 T00:00:00 作为 fallback"""
         content = _build_wechat_xlsx([_make_row(time="2026-02-24T17:30:00")])
         result = parse_wechat_xlsx(content)
-        assert result[0]["date"] == "2026-02-24"
+        assert result[0]["date"] == "2026-02-24T00:00:00"
 
 
 # ──────────── 错误处理 ────────────

@@ -36,7 +36,7 @@ async def _create_expense(client, book_id, amount, headers):
         f"/books/{book_id}/entries",
         json={
             "entry_type": "expense",
-            "entry_date": "2025-06-15",
+            "entry_date": "2025-06-15T10:30:00",
             "amount": amount,
             "category_account_id": food_id,
             "payment_account_id": cash_id,
@@ -53,7 +53,7 @@ async def _create_income(client, book_id, amount, headers):
         f"/books/{book_id}/entries",
         json={
             "entry_type": "income",
-            "entry_date": "2025-06-01",
+            "entry_date": "2025-06-01T09:00:00",
             "amount": amount,
             "category_account_id": salary_id,
             "payment_account_id": bank_id,

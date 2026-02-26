@@ -15,7 +15,7 @@ def register(mcp: FastMCP):
 
         entries 参数是一个 JSON 数组字符串，每个元素包含：
         - entry_type: 分录类型 (expense/income/transfer/asset_purchase/borrow/repay)
-        - entry_date: 日期 (YYYY-MM-DD)
+        - entry_date: 日期时间 (YYYY-MM-DDTHH:mm:ss)
         - description: 摘要描述
         - amount: 金额 (正数)
         - category_account_id: 分类科目 ID（费用类/收入类科目）

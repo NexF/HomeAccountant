@@ -304,7 +304,9 @@ def record_to_entry(record: dict, plugin_config: dict) -> dict | None:
         )
         return None
 
-    entry_date = record.get("msg_time", "")[:10]
+    raw_time = record.get("msg_time", "")
+    # msg_time 格式通常为 "2026-02-26 14:30:00"，转为 ISO 8601
+    entry_date = raw_time.replace(" ", "T")[:19] if len(raw_time) >= 19 else raw_time[:10] + "T00:00:00"
 
     bank = record.get("bank", "")
     tx_type = fields.get("transaction_type", "")
@@ -461,8 +463,8 @@ def run_plugin(args):
                             fields = rec.get("fields", {})
                             balance = parse_amount(fields.get("balance"))
                             if balance is not None:
-                                entry_date = rec.get("msg_time", "")[:10]
-                                balance_tasks.append((balance, entry_date))
+                                snap_date = rec.get("msg_time", "")[:10]
+                                balance_tasks.append((balance, snap_date))
 
                 # 批量记账
                 if all_entries:

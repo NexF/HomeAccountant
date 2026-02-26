@@ -40,6 +40,8 @@ async def init_db():
         await _migrate_plugin_config(conn)
         # v0.4.2: plugins 表新增 display_name 字段
         await _migrate_plugin_display_name(conn)
+        # v0.4.2: journal_entries.entry_date 从 DATE 迁移为 TIMESTAMP
+        await _migrate_entry_date_to_datetime(conn)
 
 
 async def _migrate_budgets(conn):
@@ -123,3 +125,82 @@ async def _migrate_plugin_display_name(conn):
         await conn.execute(
             text("ALTER TABLE plugins ADD COLUMN display_name VARCHAR(100)")
         )
+
+
+async def _migrate_entry_date_to_datetime(conn):
+    """将 journal_entries.entry_date 从 DATE 迁移为 TIMESTAMP（幂等）。
+
+    SQLite 不支持 ALTER COLUMN，需要重建表。
+    迁移策略：
+      1. 抽样检查当前列是否已包含时间信息
+      2. 若为纯日期格式，通过 CREATE TABLE AS + 数据迁移 + DROP + RENAME 完成
+      3. 重建索引
+    """
+    from sqlalchemy import text
+    import shutil
+    import os
+
+    # 幂等检查：表是否存在
+    check = await conn.execute(
+        text("SELECT name FROM sqlite_master WHERE type='table' AND name='journal_entries'")
+    )
+    if not check.fetchone():
+        return  # 表不存在，无需迁移
+
+    # 幂等检查：抽样查看是否已含时间
+    sample = await conn.execute(
+        text("SELECT entry_date FROM journal_entries LIMIT 1")
+    )
+    row = sample.fetchone()
+    if row is None:
+        return  # 空表，无需迁移
+    val = str(row[0]) if row[0] else ""
+    if "T" in val or (" " in val and ":" in val):
+        return  # 已包含时间信息，无需迁移
+
+    # 备份数据库文件
+    db_path = str(conn.engine.url).replace("sqlite+aiosqlite:///", "")
+    if os.path.exists(db_path):
+        shutil.copy2(db_path, db_path + ".bak_v042")
+
+    # SQLite 迁移：添加新列 → 数据迁移 → 重建表
+    await conn.execute(text(
+        "ALTER TABLE journal_entries ADD COLUMN entry_date_new TIMESTAMP"
+    ))
+    await conn.execute(text(
+        "UPDATE journal_entries SET entry_date_new = entry_date || 'T00:00:00'"
+    ))
+
+    # 获取所有列名（排除 entry_date 和 entry_date_new，用 entry_date_new 替代 entry_date）
+    result = await conn.execute(text("PRAGMA table_info(journal_entries)"))
+    all_cols = [r[1] for r in result.fetchall()]
+
+    cols_without_old = [c for c in all_cols if c not in ("entry_date", "entry_date_new")]
+    select_cols = ", ".join(cols_without_old) + ", entry_date_new AS entry_date"
+    insert_cols = ", ".join(cols_without_old) + ", entry_date"
+
+    await conn.execute(text(
+        f"CREATE TABLE journal_entries_backup AS SELECT {select_cols} FROM journal_entries"
+    ))
+    await conn.execute(text("DROP TABLE journal_entries"))
+    await conn.execute(text(
+        "ALTER TABLE journal_entries_backup RENAME TO journal_entries"
+    ))
+
+    # 重建索引
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_journal_entries_book_date "
+        "ON journal_entries(book_id, entry_date)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_journal_entries_book_type "
+        "ON journal_entries(book_id, entry_type)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_journal_entries_book_reconciliation "
+        "ON journal_entries(book_id, reconciliation_status)"
+    ))
+    await conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_journal_entries_entry_date "
+        "ON journal_entries(entry_date)"
+    ))

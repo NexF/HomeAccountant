@@ -105,9 +105,10 @@ def parse_wechat_xlsx(content: bytes) -> list[dict]:
         # 日期解析
         try:
             dt = datetime.strptime(raw_time, "%Y-%m-%d %H:%M:%S")
-            date_str = dt.strftime("%Y-%m-%d")
+            date_str = dt.strftime("%Y-%m-%dT%H:%M:%S")  # 保留完整时间
         except ValueError:
-            date_str = raw_time[:10]  # fallback
+            # fallback：尝试提取日期，补 00:00:00
+            date_str = raw_time[:10] + "T00:00:00"
 
         result.append({
             "date": date_str,

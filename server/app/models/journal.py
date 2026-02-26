@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime, date
+from datetime import datetime
 
 from sqlalchemy import (
-    String, DateTime, Date, ForeignKey, Boolean, Text,
+    String, DateTime, ForeignKey, Boolean, Text,
     Numeric, JSON, Enum as SAEnum, Index,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -27,7 +27,7 @@ class JournalEntry(Base):
     user_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=False
     )
-    entry_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    entry_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     entry_type: Mapped[str] = mapped_column(
         SAEnum(
             "expense", "income", "asset_purchase", "asset_dispose", "borrow",

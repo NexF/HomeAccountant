@@ -40,7 +40,7 @@ async def accounts(test_book: Book):
 def _expense_item(accounts, idx=0, external_id=None):
     item = {
         "entry_type": "expense",
-        "entry_date": "2025-06-01",
+        "entry_date": "2025-06-01T09:00:00",
         "amount": "50.00",
         "category_account_id": accounts["5001"],
         "payment_account_id": accounts["1001-01"],
@@ -54,7 +54,7 @@ def _expense_item(accounts, idx=0, external_id=None):
 def _income_item(accounts, idx=0, external_id=None):
     item = {
         "entry_type": "income",
-        "entry_date": "2025-06-01",
+        "entry_date": "2025-06-01T09:00:00",
         "amount": "8000.00",
         "category_account_id": accounts["4001"],
         "payment_account_id": accounts["1002-01"],
@@ -68,7 +68,7 @@ def _income_item(accounts, idx=0, external_id=None):
 def _transfer_item(accounts, idx=0, external_id=None):
     item = {
         "entry_type": "transfer",
-        "entry_date": "2025-06-01",
+        "entry_date": "2025-06-01T09:00:00",
         "amount": "1000.00",
         "from_account_id": accounts["1002-01"],
         "to_account_id": accounts["1001-01"],
@@ -399,7 +399,7 @@ class TestTransactionBoundary:
             _expense_item(accounts, 1, external_id="tx_002"),
             {
                 "entry_type": "expense",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": "100.00",
                 "category_account_id": str(uuid.uuid4()),
                 "payment_account_id": accounts["1001-01"],
@@ -439,7 +439,7 @@ class TestTransactionBoundary:
             _expense_item(accounts, 0),
             {
                 "entry_type": "expense",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": "100.00",
                 "category_account_id": str(uuid.uuid4()),
                 "payment_account_id": accounts["1001-01"],

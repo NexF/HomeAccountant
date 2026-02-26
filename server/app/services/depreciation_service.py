@@ -1,6 +1,6 @@
 """折旧计算引擎 — 按月/按日直线法、处置"""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import select, and_
@@ -140,7 +140,7 @@ async def depreciate_one_period(
     entry = JournalEntry(
         book_id=asset.book_id,
         user_id=user_id,
-        entry_date=date.today(),
+        entry_date=datetime.now(),
         entry_type="depreciation",
         description=f"折旧 - {asset.name} [{asset.id}] {period_label}",
     )
@@ -241,7 +241,7 @@ async def dispose_asset(
     entry = JournalEntry(
         book_id=asset.book_id,
         user_id=user_id,
-        entry_date=disposal_date,
+        entry_date=datetime(disposal_date.year, disposal_date.month, disposal_date.day) if isinstance(disposal_date, date) and not isinstance(disposal_date, datetime) else disposal_date,
         entry_type="asset_dispose",
         description=f"处置资产 - {asset.name}",
     )

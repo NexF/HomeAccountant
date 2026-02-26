@@ -23,6 +23,7 @@ import {
   type EntryDetailResponse,
   type JournalLineResponse,
 } from '@/services/entryService';
+import { DateTimePicker, toISODateTimeString } from '@/components/DateTimePicker';
 import { budgetService, type BudgetAlert as BudgetAlertType } from '@/services/budgetService';
 import BudgetAlert from '@/features/budget/BudgetAlert';
 import type { AccountTreeNode } from '@/services/accountService';
@@ -42,15 +43,15 @@ type PickerTarget =
   | 'extra_liability'
   | 'interest_category';
 
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 export type NewEntryScreenProps = {
   editIdProp?: string;
   onClose?: () => void;
 };
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenProps = {}) {
   const colorScheme = useColorScheme() ?? 'light';
@@ -75,7 +76,7 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
   const [principal, setPrincipal] = useState('');
   const [interest, setInterest] = useState('');
   const [description, setDescription] = useState('');
-  const [entryDate, setEntryDate] = useState(todayStr());
+  const [entryDate, setEntryDate] = useState(new Date());
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
@@ -266,7 +267,7 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
         // 先标记跳过重置，再设置 entryType
         skipNextResetRef.current = true;
         setEntryType(data.entry_type as EntryType);
-        setEntryDate(data.entry_date);
+        setEntryDate(new Date(data.entry_date));
         setDescription(data.description ?? '');
         setNote(data.note ?? '');
 
@@ -387,7 +388,7 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
     }
     const params: EntryCreateParams = {
       entry_type: entryType,
-      entry_date: entryDate,
+      entry_date: toISODateTimeString(entryDate),
       description: description || undefined,
       note: note || undefined,
     };
@@ -520,7 +521,7 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
       if (isEditMode && editId) {
         // 编辑模式：PUT 更新
         const updateParams: EntryUpdateParams = {
-          entry_date: entryDate,
+          entry_date: toISODateTimeString(entryDate),
           description: description || undefined,
           note: note || undefined,
         };
@@ -1104,16 +1105,14 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
         </View>
 
         {/* 日期 */}
-        <View style={[styles.field, { borderColor: colors.border }]}>
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>日期</Text>
-          <TextInput
-            style={[styles.textInput, { color: colors.text }]}
-            value={entryDate}
-            onChangeText={setEntryDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
+        <DateTimePicker
+          value={entryDate}
+          onChange={setEntryDate}
+          label="日期"
+          labelStyle={[styles.fieldLabel, { color: colors.textSecondary }]}
+          containerStyle={[styles.field, { borderColor: colors.border }]}
+          colors={colors}
+        />
 
         {/* 动态表单 */}
         {renderForm()}

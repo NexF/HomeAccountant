@@ -17,6 +17,10 @@ COPY app/ app/
 # 创建数据目录（用于 SQLite 持久化，运行时挂载 volume）
 RUN mkdir -p /app/data
 
+# 时区设置为东八区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # 环境变量（生产环境通过 -e 或 .env 覆盖）
 ENV DATABASE_DIR=/app/data \
     DEBUG=false \

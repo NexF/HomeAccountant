@@ -3,7 +3,7 @@
 从分录明细行（journal_lines）实时汇算。
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 
@@ -86,7 +86,8 @@ async def get_balance_sheet(
     4. 校验：资产合计 == 负债合计 + 净资产合计
     """
 
-    date_filter = [JournalEntry.entry_date <= as_of_date]
+    next_day = datetime(as_of_date.year, as_of_date.month, as_of_date.day) + timedelta(days=1)
+    date_filter = [JournalEntry.entry_date < next_day]
     rows = await _query_account_balances(db, book_id, date_filter)
 
     assets = []
@@ -168,9 +169,10 @@ async def get_income_statement(
     3. 本期损益 = 收入 - 费用
     """
 
+    end_next_day = datetime(end_date.year, end_date.month, end_date.day) + timedelta(days=1)
     date_filter = [
-        JournalEntry.entry_date >= start_date,
-        JournalEntry.entry_date <= end_date,
+        JournalEntry.entry_date >= datetime(start_date.year, start_date.month, start_date.day),
+        JournalEntry.entry_date < end_next_day,
     ]
     rows = await _query_account_balances(
         db, book_id, date_filter, type_filter=["income", "expense"]
@@ -250,7 +252,7 @@ async def get_dashboard(
         select(JE)
         .where(JE.book_id == book_id)
         .options(selectinload(JE.lines).selectinload(JL.account))
-        .order_by(JE.entry_date.desc(), JE.created_at.desc())
+        .order_by(JE.entry_date.desc())
         .limit(30)
     )
     result = await db.execute(stmt)
@@ -276,7 +278,7 @@ async def get_dashboard(
             "id": e.id,
             "book_id": e.book_id,
             "user_id": e.user_id,
-            "entry_date": e.entry_date.isoformat() if isinstance(e.entry_date, date) else str(e.entry_date),
+            "entry_date": e.entry_date.isoformat() if e.entry_date else None,
             "entry_type": e.entry_type,
             "description": e.description,
             "note": e.note,

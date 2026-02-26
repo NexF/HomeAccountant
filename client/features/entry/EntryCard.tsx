@@ -31,6 +31,7 @@ function fmtImpact(n: number): string {
 type Props = {
   entry: {
     entry_type: string;
+    entry_date?: string;
     description: string | null;
     net_worth_impact?: number;
   };
@@ -44,6 +45,10 @@ export default function EntryCard({ entry, onPress }: Props) {
 
   const impact = entry.net_worth_impact ?? 0;
   const impactColor = impact > 0 ? Colors.asset : impact < 0 ? Colors.liability : colors.textSecondary;
+
+  // 从 entry_date 提取时间 HH:mm，旧数据 00:00 显示为 --:--
+  const time = entry.entry_date ? entry.entry_date.slice(11, 16) : '';
+  const timeDisplay = time && time !== '00:00' ? time : '--:--';
 
   const Wrapper = onPress ? Pressable : View;
 
@@ -65,7 +70,7 @@ export default function EntryCard({ entry, onPress }: Props) {
           {entry.description || meta.label}
         </Text>
         <Text style={[styles.meta, { color: colors.textSecondary }]}>
-          {meta.label}
+          {meta.label}  {timeDisplay}
         </Text>
       </View>
 

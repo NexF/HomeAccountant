@@ -34,7 +34,7 @@ export type ReconcileSnapshotInfo = {
 
 export type PendingReconcileItem = {
   entry_id: string;
-  entry_date: string;
+  entry_date: string; // ISO 8601: YYYY-MM-DDTHH:mm:ss
   description: string | null;
   lines: ReconcileLineItem[];
   snapshot: ReconcileSnapshotInfo | null;

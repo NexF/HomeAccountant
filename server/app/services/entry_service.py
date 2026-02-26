@@ -1,6 +1,6 @@
 """核心记账逻辑 — 根据 entry_type 自动生成复式分录"""
 
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import HTTPException
@@ -217,7 +217,7 @@ async def create_expense(
     db: AsyncSession,
     book_id: str,
     user_id: str,
-    entry_date: date,
+    entry_date: datetime,
     amount: Decimal,
     category_account_id: str,
     payment_account_id: str,
@@ -249,7 +249,7 @@ async def create_income(
     db: AsyncSession,
     book_id: str,
     user_id: str,
-    entry_date: date,
+    entry_date: datetime,
     amount: Decimal,
     category_account_id: str,
     payment_account_id: str,
@@ -281,7 +281,7 @@ async def create_asset_purchase(
     db: AsyncSession,
     book_id: str,
     user_id: str,
-    entry_date: date,
+    entry_date: datetime,
     amount: Decimal,
     asset_account_id: str,
     payment_account_id: str,
@@ -383,7 +383,7 @@ async def create_borrow(
     db: AsyncSession,
     book_id: str,
     user_id: str,
-    entry_date: date,
+    entry_date: datetime,
     amount: Decimal,
     payment_account_id: str,
     liability_account_id: str,
@@ -439,7 +439,7 @@ async def create_repayment(
     db: AsyncSession,
     book_id: str,
     user_id: str,
-    entry_date: date,
+    entry_date: datetime,
     principal: Decimal,
     interest: Decimal,
     liability_account_id: str,
@@ -480,7 +480,7 @@ async def create_transfer(
     db: AsyncSession,
     book_id: str,
     user_id: str,
-    entry_date: date,
+    entry_date: datetime,
     amount: Decimal,
     from_account_id: str,
     to_account_id: str,
@@ -512,7 +512,7 @@ async def create_manual_entry(
     db: AsyncSession,
     book_id: str,
     user_id: str,
-    entry_date: date,
+    entry_date: datetime,
     lines_data: list[dict],
     description: str | None = None,
     note: str | None = None,
@@ -565,9 +565,10 @@ async def get_entries_paginated(
     if entry_type:
         conditions.append(JournalEntry.entry_type == entry_type)
     if start_date:
-        conditions.append(JournalEntry.entry_date >= start_date)
+        conditions.append(JournalEntry.entry_date >= datetime(start_date.year, start_date.month, start_date.day))
     if end_date:
-        conditions.append(JournalEntry.entry_date <= end_date)
+        next_day = datetime(end_date.year, end_date.month, end_date.day) + timedelta(days=1)
+        conditions.append(JournalEntry.entry_date < next_day)
 
     # 按科目筛选：找包含该科目的分录
     if account_id:
@@ -591,7 +592,7 @@ async def get_entries_paginated(
         select(JournalEntry)
         .options(selectinload(JournalEntry.lines).selectinload(JournalLine.account))
         .where(where_clause)
-        .order_by(JournalEntry.entry_date.desc(), JournalEntry.created_at.desc())
+        .order_by(JournalEntry.entry_date.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )

@@ -192,7 +192,7 @@ class TestBudgetOverviewAndCheck:
         self, client, auth_headers, test_book: Book
     ):
         """记费用后触发预算预警"""
-        from datetime import date
+        from datetime import datetime
 
         # 获取费用科目
         acct_resp = await client.get(
@@ -212,7 +212,7 @@ class TestBudgetOverviewAndCheck:
             headers=auth_headers,
         )
 
-        today = date.today().isoformat()
+        today = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
         # 记费用 2500（= 83% > 80%，应触发 warning）
         await client.post(
@@ -244,7 +244,7 @@ class TestBudgetOverviewAndCheck:
         self, client, auth_headers, test_book: Book
     ):
         """记费用后触发超支告警"""
-        from datetime import date
+        from datetime import datetime
 
         acct_resp = await client.get(
             f"/books/{test_book.id}/accounts", headers=auth_headers
@@ -261,7 +261,7 @@ class TestBudgetOverviewAndCheck:
             headers=auth_headers,
         )
 
-        today = date.today().isoformat()
+        today = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
         # 记费用 3100（> 100%，应触发 exceeded）
         await client.post(

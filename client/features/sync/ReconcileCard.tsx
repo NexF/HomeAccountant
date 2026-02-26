@@ -51,7 +51,9 @@ export default function ReconcileCard({ item, onConfirm, onSplit }: Props) {
             {accountLine?.account_name ?? '对账调节'}
           </Text>
         </View>
-        <Text style={[styles.date, { color: colors.textSecondary }]}>{item.entry_date}</Text>
+        <Text style={[styles.date, { color: colors.textSecondary }]}>
+          {item.entry_date.slice(0, 10)}
+        </Text>
       </View>
 
       {/* 余额对比 */}

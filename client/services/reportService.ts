@@ -39,7 +39,7 @@ export type RecentEntryItem = {
   id: string;
   book_id: string;
   user_id: string;
-  entry_date: string;
+  entry_date: string; // ISO 8601: YYYY-MM-DDTHH:mm:ss
   entry_type: string;
   description: string | null;
   note: string | null;

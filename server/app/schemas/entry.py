@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class JournalLineCreate(BaseModel):
@@ -19,7 +19,17 @@ class EntryCreateRequest(BaseModel):
         ...,
         pattern=r"^(expense|income|asset_purchase|borrow|repay|transfer|manual)$",
     )
-    entry_date: date
+    entry_date: datetime
+
+    @field_validator("entry_date", mode="before")
+    @classmethod
+    def _entry_date_must_include_time(cls, v: object) -> object:
+        """纯日期字符串 'YYYY-MM-DD' 不接受，必须包含时间部分"""
+        if isinstance(v, str):
+            # 长度 == 10 说明是纯日期，如 "2025-06-15"
+            if len(v.strip()) == 10:
+                raise ValueError("entry_date must be a full datetime (e.g. 2025-06-15T10:30:00), not a date-only string")
+        return v
     description: str | None = Field(None, max_length=500)
     note: str | None = None
 
@@ -79,7 +89,16 @@ class EntryUpdateRequest(BaseModel):
     """分录完整编辑请求 — 除 entry_type 外，所有业务字段均可修改"""
 
     # 元数据
-    entry_date: date | None = None
+    entry_date: datetime | None = None
+
+    @field_validator("entry_date", mode="before")
+    @classmethod
+    def _entry_date_must_include_time(cls, v: object) -> object:
+        if v is None:
+            return v
+        if isinstance(v, str) and len(v.strip()) == 10:
+            raise ValueError("entry_date must be a full datetime (e.g. 2025-06-15T10:30:00), not a date-only string")
+        return v
     description: str | None = Field(None, max_length=500)
     note: str | None = None
 
@@ -124,7 +143,7 @@ class EntryResponse(BaseModel):
     id: str
     book_id: str
     user_id: str
-    entry_date: date
+    entry_date: datetime
     entry_type: str
     description: str | None
     note: str | None

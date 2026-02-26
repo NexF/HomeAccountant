@@ -19,7 +19,7 @@ export type JournalLineCreate = {
 
 export type EntryCreateParams = {
   entry_type: EntryType;
-  entry_date: string; // YYYY-MM-DD
+  entry_date: string; // ISO 8601: YYYY-MM-DDTHH:mm:ss
   description?: string;
   note?: string;
 
@@ -55,7 +55,7 @@ export type EntryCreateParams = {
 };
 
 export type EntryUpdateParams = {
-  entry_date?: string;
+  entry_date?: string; // ISO 8601: YYYY-MM-DDTHH:mm:ss
   description?: string;
   note?: string;
 
@@ -90,7 +90,7 @@ export type EntryResponse = {
   id: string;
   book_id: string;
   user_id: string;
-  entry_date: string;
+  entry_date: string; // ISO 8601: YYYY-MM-DDTHH:mm:ss
   entry_type: EntryType;
   description: string | null;
   note: string | null;

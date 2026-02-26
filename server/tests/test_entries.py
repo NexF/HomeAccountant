@@ -53,7 +53,7 @@ class TestExpenseEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 50,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -82,7 +82,7 @@ class TestExpenseEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 50,
                 # 缺少 category_account_id 和 payment_account_id
             },
@@ -110,7 +110,7 @@ class TestIncomeEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "income",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": 15000,
                 "category_account_id": salary_id,
                 "payment_account_id": bank_id,
@@ -146,7 +146,7 @@ class TestTransferEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "transfer",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 1000,
                 "from_account_id": cash_id,
                 "to_account_id": bank_id,
@@ -180,7 +180,7 @@ class TestBorrowEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "borrow",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": 50000,
                 "payment_account_id": bank_id,
                 "liability_account_id": loan_id,
@@ -212,7 +212,7 @@ class TestRepayEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "repay",
-                "entry_date": "2025-07-01",
+                "entry_date": "2025-07-01T08:00:00",
                 "principal": 5000,
                 "interest": 200,
                 "liability_account_id": loan_id,
@@ -249,7 +249,7 @@ class TestAssetPurchaseEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "asset_purchase",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": 8000,
                 "asset_account_id": asset_acct_id,
                 "payment_account_id": bank_id,
@@ -280,7 +280,7 @@ class TestAssetPurchaseEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "asset_purchase",
-                "entry_date": "2025-06-01",
+                "entry_date": "2025-06-01T09:00:00",
                 "amount": 1000000,
                 "asset_account_id": asset_acct_id,
                 "payment_account_id": bank_id,
@@ -320,7 +320,7 @@ class TestManualEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "manual",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "description": "手动调整",
                 "lines": [
                     {"account_id": cash_id, "debit_amount": 500, "credit_amount": 0},
@@ -343,7 +343,7 @@ class TestManualEntry:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "manual",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "lines": [
                     {"account_id": cash_id, "debit_amount": 500, "credit_amount": 0},
                 ],
@@ -372,7 +372,7 @@ class TestEntryCRUD:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 30,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -424,7 +424,7 @@ class TestEntryCRUD:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 25,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -458,7 +458,7 @@ class TestEntryCRUD:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 20,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -488,7 +488,7 @@ class TestEntryCRUD:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 10,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -511,7 +511,7 @@ class TestEntryCRUD:
             "/books/fake-book-id/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 10,
                 "category_account_id": "x",
                 "payment_account_id": "y",
@@ -544,7 +544,7 @@ class TestEntryFullEdit:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 50,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -603,7 +603,7 @@ class TestEntryFullEdit:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "income",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 5000,
                 "category_account_id": salary_id,
                 "payment_account_id": cash_id,
@@ -640,7 +640,7 @@ class TestEntryFullEdit:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "transfer",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 1000,
                 "from_account_id": cash_id,
                 "to_account_id": bank_id,
@@ -677,7 +677,7 @@ class TestEntryFullEdit:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 30,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -713,7 +713,7 @@ class TestEntryFullEdit:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 20,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -745,7 +745,7 @@ class TestEntryFullEdit:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 10,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -760,7 +760,7 @@ class TestEntryFullEdit:
                 "amount": 99,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
-                "entry_date": "2025-07-01",
+                "entry_date": "2025-07-01T08:00:00",
             },
             headers=auth_headers,
         )
@@ -768,7 +768,7 @@ class TestEntryFullEdit:
         data = resp.json()
         assert data["id"] == original["id"]
         assert data["created_at"] == original["created_at"]
-        assert data["entry_date"] == "2025-07-01"
+        assert data["entry_date"] == "2025-07-01T08:00:00"
 
     @pytest.mark.asyncio
     async def test_detail_response_includes_account_type(
@@ -782,7 +782,7 @@ class TestEntryFullEdit:
             f"/books/{test_book.id}/entries",
             json={
                 "entry_type": "expense",
-                "entry_date": "2025-06-15",
+                "entry_date": "2025-06-15T10:30:00",
                 "amount": 15,
                 "category_account_id": food_id,
                 "payment_account_id": cash_id,
@@ -797,3 +797,151 @@ class TestEntryFullEdit:
         for line in data["lines"]:
             assert "account_type" in line
             assert line["account_type"] in ("asset", "liability", "equity", "income", "expense")
+
+
+# ═══════════════════════════════════════════
+# v0.4.2 — entry_date datetime 验证
+# ═══════════════════════════════════════════
+
+
+class TestEntryDateDatetime:
+    """v0.4.2: entry_date 从 date 升级为 datetime 的验证用例"""
+
+    @pytest.mark.asyncio
+    async def test_create_entry_with_datetime(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """传入完整 datetime 创建成功，返回完整 datetime"""
+        food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
+
+        resp = await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "expense",
+                "entry_date": "2025-06-15T14:30:00",
+                "amount": 42,
+                "category_account_id": food_id,
+                "payment_account_id": cash_id,
+                "description": "datetime 测试",
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert "T" in data["entry_date"]
+        assert data["entry_date"].startswith("2025-06-15T")
+
+    @pytest.mark.asyncio
+    async def test_create_entry_with_date_only_rejected(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """传入纯日期 "2025-06-15" 返回 422"""
+        food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
+
+        resp = await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "expense",
+                "entry_date": "2025-06-15",
+                "amount": 42,
+                "category_account_id": food_id,
+                "payment_account_id": cash_id,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_same_day_ordering_by_time(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """创建 3 条同日不同时间的记录，列表按时间倒序"""
+        food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
+
+        times = ["2025-06-15T08:00:00", "2025-06-15T14:30:00", "2025-06-15T22:00:00"]
+        for t in times:
+            await client.post(
+                f"/books/{test_book.id}/entries",
+                json={
+                    "entry_type": "expense",
+                    "entry_date": t,
+                    "amount": 10,
+                    "category_account_id": food_id,
+                    "payment_account_id": cash_id,
+                },
+                headers=auth_headers,
+            )
+
+        resp = await client.get(
+            f"/books/{test_book.id}/entries?start_date=2025-06-15&end_date=2025-06-15",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        # 按时间倒序：22:00 > 14:30 > 08:00
+        entry_dates = [i["entry_date"] for i in items]
+        assert entry_dates == sorted(entry_dates, reverse=True)
+
+    @pytest.mark.asyncio
+    async def test_list_entries_end_date_boundary(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """end_date=2025-06-15 包含 2025-06-15T23:59:59 的记录"""
+        food_id = await _get_account_id(client, test_book.id, "5001", auth_headers)
+        cash_id = await _get_account_id(client, test_book.id, "1001-01", auth_headers)
+
+        # 创建一条当天 23:59:59 的记录
+        await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "expense",
+                "entry_date": "2025-06-15T23:59:59",
+                "amount": 5,
+                "category_account_id": food_id,
+                "payment_account_id": cash_id,
+            },
+            headers=auth_headers,
+        )
+
+        resp = await client.get(
+            f"/books/{test_book.id}/entries?start_date=2025-06-15&end_date=2025-06-15",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        # 应该包含 23:59:59 的记录
+        late_entries = [i for i in items if "23:59:59" in i["entry_date"]]
+        assert len(late_entries) >= 1
+
+    @pytest.mark.asyncio
+    async def test_report_as_of_date_boundary(
+        self, client: AsyncClient, auth_headers, test_book: Book
+    ):
+        """资产负债表 as_of_date=2025-06-15 包含当天所有时间的分录"""
+        bank_id = await _get_account_id(client, test_book.id, "1002-01", auth_headers)
+        salary_id = await _get_account_id(client, test_book.id, "4001", auth_headers)
+
+        # 创建一笔当天晚上的收入
+        await client.post(
+            f"/books/{test_book.id}/entries",
+            json={
+                "entry_type": "income",
+                "entry_date": "2025-06-15T23:00:00",
+                "amount": 1000,
+                "category_account_id": salary_id,
+                "payment_account_id": bank_id,
+            },
+            headers=auth_headers,
+        )
+
+        resp = await client.get(
+            f"/books/{test_book.id}/balance-sheet?date=2025-06-15",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # 资产总额应包含当天 23:00 的收入
+        assert data["total_asset"] >= 1000

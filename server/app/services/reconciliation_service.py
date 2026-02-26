@@ -64,6 +64,8 @@ async def create_snapshot(
     记录外部余额快照，计算差异，如差异!=0 则自动生成调节分录。
     """
     target_date = snapshot_date or date.today()
+    # 对账分录使用当前时刻（含时分秒），而非午夜零点
+    entry_datetime = datetime.now().replace(microsecond=0)
 
     # 校验科目
     result = await db.execute(
@@ -155,7 +157,7 @@ async def create_snapshot(
         entry = JournalEntry(
             book_id=book_id,
             user_id=user_id,
-            entry_date=datetime(target_date.year, target_date.month, target_date.day),
+            entry_date=entry_datetime,
             entry_type="reconciliation",
             description=f"对账调节：{account.name}",
             source="reconciliation",

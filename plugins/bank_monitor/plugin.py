@@ -483,22 +483,22 @@ def run_plugin(args):
                         _interruptible_sleep(poll_interval, lambda: running)
                         continue
 
-                # 余额同步
+                # 余额同步：只提交最新一条余额快照
                 if balance_tasks:
                     deposit_account_id = plugin_config["deposit_account_id"]
-                    for balance, snap_date in balance_tasks:
-                        try:
-                            snap_result = client.submit_balance_snapshot(
-                                deposit_account_id, balance, snap_date
-                            )
-                            logger.info(
-                                "余额快照: balance=%.2f, status=%s, diff=%s",
-                                balance,
-                                snap_result.get("status"),
-                                snap_result.get("difference"),
-                            )
-                        except Exception:
-                            logger.exception("余额快照提交失败 (非致命)")
+                    latest_balance, latest_date = balance_tasks[-1]
+                    try:
+                        snap_result = client.submit_balance_snapshot(
+                            deposit_account_id, latest_balance, latest_date
+                        )
+                        logger.info(
+                            "余额快照: balance=%.2f, status=%s, diff=%s",
+                            latest_balance,
+                            snap_result.get("status"),
+                            snap_result.get("difference"),
+                        )
+                    except Exception:
+                        logger.exception("余额快照提交失败 (非致命)")
 
                 # 成功后保存游标
                 save_state(state, DEFAULT_STATE_PATH)

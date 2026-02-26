@@ -7,7 +7,9 @@ import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { pluginService, type PluginResponse } from '@/services/pluginService';
-import PluginConfigForm from '@/features/plugin/PluginConfigForm';
+import { AccountPicker } from '@/features/entry';
+import type { AccountTreeNode } from '@/services/accountService';
+import PluginConfigForm, { type PickerRequest } from '@/features/plugin/PluginConfigForm';
 
 export default function PluginConfigScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -20,6 +22,8 @@ export default function PluginConfigScreen() {
   const [plugin, setPlugin] = useState<PluginResponse | null>(null);
   const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [pickerRequest, setPickerRequest] = useState<PickerRequest>(null);
+  const [pickedAccount, setPickedAccount] = useState<{ fieldKey: string; account: AccountTreeNode } | null>(null);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -58,6 +62,13 @@ export default function PluginConfigScreen() {
     }
   };
 
+  const handlePickerSelect = (account: AccountTreeNode) => {
+    if (pickerRequest) {
+      setPickedAccount({ fieldKey: pickerRequest.fieldKey, account });
+    }
+    setPickerRequest(null);
+  };
+
   return (
     <View style={s.container}>
       {/* Header */}
@@ -87,9 +98,20 @@ export default function PluginConfigScreen() {
             onSave={handleSave}
             onCancel={() => router.back()}
             loading={saving}
+            onPickerRequest={setPickerRequest}
+            pickedAccount={pickedAccount}
           />
         </ScrollView>
       )}
+
+      {/* AccountPicker（渲染在顶层，确保浮在整个屏幕上） */}
+      <AccountPicker
+        visible={pickerRequest !== null}
+        onClose={() => setPickerRequest(null)}
+        onSelect={handlePickerSelect}
+        selectedId={pickerRequest?.selectedId}
+        bookId={pickerRequest?.bookId}
+      />
 
       {/* Toast */}
       {toastMsg ? (

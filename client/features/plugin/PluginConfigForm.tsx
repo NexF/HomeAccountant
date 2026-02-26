@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Pressable,
@@ -7,15 +7,19 @@ import {
   Switch,
   ActivityIndicator,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { AccountPicker } from '@/features/entry';
 import type { ConfigSchema, ConfigField } from '@/services/pluginService';
 import type { AccountTreeNode } from '@/services/accountService';
 import { useAccountStore } from '@/stores/accountStore';
 import { useBookStore } from '@/stores/bookStore';
+
+export type PickerRequest = {
+  fieldKey: string;
+  bookId: string;
+  selectedId?: string;
+} | null;
 
 type Props = {
   schema: ConfigSchema;
@@ -23,6 +27,8 @@ type Props = {
   onSave: (config: Record<string, any>) => void;
   onCancel: () => void;
   loading: boolean;
+  onPickerRequest?: (request: PickerRequest) => void;
+  pickedAccount?: { fieldKey: string; account: AccountTreeNode } | null;
 };
 
 export default function PluginConfigForm({
@@ -31,6 +37,8 @@ export default function PluginConfigForm({
   onSave,
   onCancel,
   loading,
+  onPickerRequest,
+  pickedAccount,
 }: Props) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
@@ -44,11 +52,7 @@ export default function PluginConfigForm({
     return initial;
   });
 
-  const [pickerField, setPickerField] = useState<string | null>(null);
-  const [accountNames, setAccountNames] = useState<Record<string, string>>(() => {
-    const names: Record<string, string> = {};
-    return names;
-  });
+  const [accountNames, setAccountNames] = useState<Record<string, string>>({});
 
   // 构建 depends_on 反向索引：book_select key → 依赖它的 account_select keys
   const dependentsMap = React.useMemo(() => {
@@ -62,10 +66,18 @@ export default function PluginConfigForm({
     return map;
   }, [schema]);
 
+  // 接收父组件通过 AccountPicker 选中的科目
+  useEffect(() => {
+    if (pickedAccount) {
+      const { fieldKey, account } = pickedAccount;
+      setFormData((prev) => ({ ...prev, [fieldKey]: account.id }));
+      setAccountNames((prev) => ({ ...prev, [account.id]: account.name }));
+    }
+  }, [pickedAccount]);
+
   const updateField = (key: string, value: any) => {
     setFormData((prev) => {
       const next = { ...prev, [key]: value };
-      // 级联清空：如果该字段有依赖者（account_select），清空它们的值
       const deps = dependentsMap[key];
       if (deps) {
         for (const depKey of deps) {
@@ -74,7 +86,6 @@ export default function PluginConfigForm({
       }
       return next;
     });
-    // 清空关联的 accountNames 缓存
     const deps = dependentsMap[key];
     if (deps) {
       setAccountNames((prev) => {
@@ -116,6 +127,16 @@ export default function PluginConfigForm({
       }
     }
     return null;
+  };
+
+  const handleOpenPicker = (field: ConfigField) => {
+    const depBookId = field.depends_on ? formData[field.depends_on] : undefined;
+    if (!depBookId) return;
+    onPickerRequest?.({
+      fieldKey: field.key,
+      bookId: depBookId,
+      selectedId: formData[field.key] ?? undefined,
+    });
   };
 
   const renderField = (field: ConfigField) => {
@@ -224,35 +245,23 @@ export default function PluginConfigForm({
         const depBookId = field.depends_on ? formData[field.depends_on] : undefined;
         const disabled = !depBookId;
         return (
-          <>
-            <Pressable
-              style={[
-                s.input,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: disabled ? colors.border + '30' : colors.background,
-                  justifyContent: 'center',
-                  opacity: disabled ? 0.6 : 1,
-                },
-              ]}
-              onPress={() => !disabled && setPickerField(field.key)}
-              disabled={disabled}
-            >
-              <Text style={{ color: disabled ? colors.textSecondary : (value ? colors.text : colors.textSecondary), fontSize: 14 }}>
-                {disabled ? '请先选择账本' : (value ? findAccountName(value) : `选择${field.label}`)}
-              </Text>
-            </Pressable>
-            <AccountPicker
-              visible={pickerField === field.key}
-              onClose={() => setPickerField(null)}
-              onSelect={(account) => {
-                updateField(field.key, account.id);
-                setAccountNames((prev) => ({ ...prev, [account.id]: account.name }));
-              }}
-              selectedId={value}
-              bookId={depBookId}
-            />
-          </>
+          <Pressable
+            style={[
+              s.input,
+              {
+                borderColor: colors.border,
+                backgroundColor: disabled ? colors.border + '30' : colors.background,
+                justifyContent: 'center',
+                opacity: disabled ? 0.6 : 1,
+              },
+            ]}
+            onPress={() => handleOpenPicker(field)}
+            disabled={disabled}
+          >
+            <Text style={{ color: disabled ? colors.textSecondary : (value ? colors.text : colors.textSecondary), fontSize: 14 }}>
+              {disabled ? '请先选择账本' : (value ? findAccountName(value) : `选择${field.label}`)}
+            </Text>
+          </Pressable>
         );
       }
 

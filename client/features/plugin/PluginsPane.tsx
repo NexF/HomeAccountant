@@ -6,7 +6,9 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { pluginService, type PluginResponse } from '@/services/pluginService';
 import { styles, budgetStyles } from '@/features/profile/styles';
-import PluginConfigForm from './PluginConfigForm';
+import { AccountPicker } from '@/features/entry';
+import type { AccountTreeNode } from '@/services/accountService';
+import PluginConfigForm, { type PickerRequest } from './PluginConfigForm';
 
 const PLUGIN_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   idle: { label: '空闲', color: '#9CA3AF' },
@@ -39,7 +41,13 @@ export default function PluginsPane() {
   const [toastMsg, setToastMsg] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<PluginResponse | null>(null);
   const [configPluginId, setConfigPluginId] = useState<string | null>(null);
+  const [configDetail, setConfigDetail] = useState<PluginResponse | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
   const [configSaving, setConfigSaving] = useState(false);
+
+  // AccountPicker 状态（提升到顶层渲染，避免被 overflow:hidden 裁切）
+  const [pickerRequest, setPickerRequest] = useState<PickerRequest>(null);
+  const [pickedAccount, setPickedAccount] = useState<{ fieldKey: string; account: AccountTreeNode } | null>(null);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -71,11 +79,32 @@ export default function PluginsPane() {
     }
   };
 
+  const handleOpenConfig = async (pluginId: string) => {
+    setConfigPluginId(pluginId);
+    setConfigLoading(true);
+    try {
+      const { data } = await pluginService.get(pluginId);
+      setConfigDetail(data);
+    } catch {
+      showToast('加载配置失败');
+      setConfigPluginId(null);
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const handleCloseConfig = () => {
+    setConfigPluginId(null);
+    setConfigDetail(null);
+    setPickerRequest(null);
+    setPickedAccount(null);
+  };
+
   const handleSaveConfig = async (pluginId: string, config: Record<string, any>) => {
     setConfigSaving(true);
     try {
       await pluginService.updateConfig(pluginId, config);
-      setConfigPluginId(null);
+      handleCloseConfig();
       await fetchPlugins();
       showToast('配置已保存');
     } catch {
@@ -83,6 +112,13 @@ export default function PluginsPane() {
     } finally {
       setConfigSaving(false);
     }
+  };
+
+  const handlePickerSelect = (account: AccountTreeNode) => {
+    if (pickerRequest) {
+      setPickedAccount({ fieldKey: pickerRequest.fieldKey, account });
+    }
+    setPickerRequest(null);
   };
 
   if (loading) {
@@ -165,13 +201,20 @@ export default function PluginsPane() {
                 )}
 
                 {/* Config Form (inline expand) */}
-                {isConfigOpen && plugin.config_schema && (
+                {isConfigOpen && configLoading && (
+                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  </View>
+                )}
+                {isConfigOpen && !configLoading && configDetail?.config_schema && (
                   <PluginConfigForm
-                    schema={plugin.config_schema}
-                    config={plugin.config}
+                    schema={configDetail.config_schema}
+                    config={configDetail.config}
                     onSave={(cfg) => handleSaveConfig(plugin.id, cfg)}
-                    onCancel={() => setConfigPluginId(null)}
+                    onCancel={handleCloseConfig}
                     loading={configSaving}
+                    onPickerRequest={setPickerRequest}
+                    pickedAccount={pickedAccount}
                   />
                 )}
 
@@ -180,7 +223,7 @@ export default function PluginsPane() {
                   {plugin.has_config && !isConfigOpen && (
                     <Pressable
                       style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: Colors.primary + '15' }}
-                      onPress={() => setConfigPluginId(plugin.id)}
+                      onPress={() => handleOpenConfig(plugin.id)}
                     >
                       <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.primary }}>配置</Text>
                     </Pressable>
@@ -217,6 +260,15 @@ export default function PluginsPane() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* AccountPicker（渲染在顶层，确保浮在整个屏幕上） */}
+      <AccountPicker
+        visible={pickerRequest !== null}
+        onClose={() => setPickerRequest(null)}
+        onSelect={handlePickerSelect}
+        selectedId={pickerRequest?.selectedId}
+        bookId={pickerRequest?.bookId}
+      />
 
       {/* Toast */}
       {toastMsg ? (

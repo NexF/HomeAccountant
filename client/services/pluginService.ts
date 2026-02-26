@@ -3,11 +3,12 @@ import api from './api';
 export type ConfigField = {
   key: string;
   label: string;
-  type: 'string' | 'number' | 'boolean' | 'select' | 'account_select' | 'secret';
+  type: 'string' | 'number' | 'boolean' | 'select' | 'book_select' | 'account_select' | 'secret';
   required?: boolean;
   default?: any;
   description?: string;
   options?: { label: string; value: string }[];
+  depends_on?: string;
 };
 
 export type ConfigSchema = {
@@ -42,9 +43,9 @@ export const pluginService = {
   delete: (pluginId: string) =>
     api.delete(`/plugins/${pluginId}`),
 
-  updateConfig: (pluginId: string, config: Record<string, any>, bookId?: string) =>
+  updateConfig: (pluginId: string, config: Record<string, any>) =>
     api.put<PluginResponse>(
-      `/plugins/${pluginId}/config${bookId ? `?book_id=${bookId}` : ''}`,
+      `/plugins/${pluginId}/config`,
       { config }
     ),
 };

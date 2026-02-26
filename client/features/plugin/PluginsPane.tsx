@@ -5,7 +5,6 @@ import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { pluginService, type PluginResponse } from '@/services/pluginService';
-import { useBookStore } from '@/stores/bookStore';
 import { styles, budgetStyles } from '@/features/profile/styles';
 import PluginConfigForm from './PluginConfigForm';
 
@@ -34,7 +33,6 @@ function formatPluginDateTime(iso: string | null) {
 export default function PluginsPane() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-  const { currentBook } = useBookStore();
 
   const [loading, setLoading] = useState(true);
   const [plugins, setPlugins] = useState<PluginResponse[]>([]);
@@ -76,7 +74,7 @@ export default function PluginsPane() {
   const handleSaveConfig = async (pluginId: string, config: Record<string, any>) => {
     setConfigSaving(true);
     try {
-      await pluginService.updateConfig(pluginId, config, currentBook?.id);
+      await pluginService.updateConfig(pluginId, config);
       setConfigPluginId(null);
       await fetchPlugins();
       showToast('配置已保存');
@@ -174,7 +172,6 @@ export default function PluginsPane() {
                     onSave={(cfg) => handleSaveConfig(plugin.id, cfg)}
                     onCancel={() => setConfigPluginId(null)}
                     loading={configSaving}
-                    bookId={currentBook?.id}
                   />
                 )}
 

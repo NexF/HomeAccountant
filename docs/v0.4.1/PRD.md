@@ -138,7 +138,8 @@ v0.2.0 引入了插件系统（记账插件、余额同步插件），插件通�
 | `number` | 数字输入框 | `number` | 整数或小数 |
 | `boolean` | Switch 开关 | `boolean` | true/false |
 | `select` | 下拉选择 | `string` | 需配合 `options: [{label, value}]` |
-| `account_select` | 科目选择器 | `string` | 复用现有科目选择组件，值为 `account_id` |
+| `book_select` | 账本选择器 | `string` | 下拉选择用户有权访问的账本，值为 `book_id` |
+| `account_select` | 科目选择器 | `string` | 复用现有科目选择组件，值为 `account_id`。**必须**配合 `depends_on` 指向一个 `book_select` 字段 |
 | `secret` | 密码输入框 | `string` | 保存后回显为 `***`，编辑时重新输入 |
 
 ### 3.4 字段属性
@@ -152,6 +153,7 @@ v0.2.0 引入了插件系统（记账插件、余额同步插件），插件通�
 | `default` | any | ❌ | 默认值 |
 | `description` | string | ❌ | 配置项描述/帮助文字 |
 | `options` | array | ❌ | `select` 类型时必填，`[{label, value}]` |
+| `depends_on` | string | ❌ | 级联依赖字段的 `key`。`account_select` 类型**必填**，须指向一个 `book_select` 字段。未选择依赖字段时，当前字段禁用；依赖字段变更时，当前字段值自动清空 |
 
 ## 4. API 变更
 

@@ -15,6 +15,7 @@ import { AccountPicker } from '@/features/entry';
 import type { ConfigSchema, ConfigField } from '@/services/pluginService';
 import type { AccountTreeNode } from '@/services/accountService';
 import { useAccountStore } from '@/stores/accountStore';
+import { useBookStore } from '@/stores/bookStore';
 
 type Props = {
   schema: ConfigSchema;
@@ -22,7 +23,6 @@ type Props = {
   onSave: (config: Record<string, any>) => void;
   onCancel: () => void;
   loading: boolean;
-  bookId?: string;
 };
 
 export default function PluginConfigForm({
@@ -31,10 +31,10 @@ export default function PluginConfigForm({
   onSave,
   onCancel,
   loading,
-  bookId,
 }: Props) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
+  const { books } = useBookStore();
 
   const [formData, setFormData] = useState<Record<string, any>>(() => {
     const initial: Record<string, any> = {};
@@ -50,8 +50,42 @@ export default function PluginConfigForm({
     return names;
   });
 
+  // 构建 depends_on 反向索引：book_select key → 依赖它的 account_select keys
+  const dependentsMap = React.useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const field of schema.fields) {
+      if (field.depends_on) {
+        if (!map[field.depends_on]) map[field.depends_on] = [];
+        map[field.depends_on].push(field.key);
+      }
+    }
+    return map;
+  }, [schema]);
+
   const updateField = (key: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [key]: value };
+      // 级联清空：如果该字段有依赖者（account_select），清空它们的值
+      const deps = dependentsMap[key];
+      if (deps) {
+        for (const depKey of deps) {
+          next[depKey] = null;
+        }
+      }
+      return next;
+    });
+    // 清空关联的 accountNames 缓存
+    const deps = dependentsMap[key];
+    if (deps) {
+      setAccountNames((prev) => {
+        const next = { ...prev };
+        for (const depKey of deps) {
+          const oldVal = formData[depKey];
+          if (oldVal) delete next[oldVal];
+        }
+        return next;
+      });
+    }
   };
 
   const canSave = schema.fields
@@ -157,15 +191,55 @@ export default function PluginConfigForm({
           </View>
         );
 
-      case 'account_select':
+      case 'book_select':
+        return (
+          <View style={s.selectWrap}>
+            {books.map((book) => (
+              <Pressable
+                key={book.id}
+                style={[
+                  s.selectOption,
+                  {
+                    borderColor: value === book.id ? Colors.primary : colors.border,
+                    backgroundColor: value === book.id ? Colors.primary + '12' : 'transparent',
+                  },
+                ]}
+                onPress={() => updateField(field.key, book.id)}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: value === book.id ? Colors.primary : colors.text,
+                    fontWeight: value === book.id ? '600' : '400',
+                  }}
+                >
+                  {book.name}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        );
+
+      case 'account_select': {
+        const depBookId = field.depends_on ? formData[field.depends_on] : undefined;
+        const disabled = !depBookId;
         return (
           <>
             <Pressable
-              style={[s.input, { borderColor: colors.border, backgroundColor: colors.background, justifyContent: 'center' }]}
-              onPress={() => setPickerField(field.key)}
+              style={[
+                s.input,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: disabled ? colors.border + '30' : colors.background,
+                  justifyContent: 'center',
+                  opacity: disabled ? 0.6 : 1,
+                },
+              ]}
+              onPress={() => !disabled && setPickerField(field.key)}
+              disabled={disabled}
             >
-              <Text style={{ color: value ? colors.text : colors.textSecondary, fontSize: 14 }}>
-                {value ? findAccountName(value) : `选择${field.label}`}
+              <Text style={{ color: disabled ? colors.textSecondary : (value ? colors.text : colors.textSecondary), fontSize: 14 }}>
+                {disabled ? '请先选择账本' : (value ? findAccountName(value) : `选择${field.label}`)}
               </Text>
             </Pressable>
             <AccountPicker
@@ -176,10 +250,11 @@ export default function PluginConfigForm({
                 setAccountNames((prev) => ({ ...prev, [account.id]: account.name }));
               }}
               selectedId={value}
-              bookId={bookId}
+              bookId={depBookId}
             />
           </>
         );
+      }
 
       default:
         return null;

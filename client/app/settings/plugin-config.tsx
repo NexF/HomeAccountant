@@ -7,7 +7,6 @@ import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { pluginService, type PluginResponse } from '@/services/pluginService';
-import { useBookStore } from '@/stores/bookStore';
 import PluginConfigForm from '@/features/plugin/PluginConfigForm';
 
 export default function PluginConfigScreen() {
@@ -16,7 +15,6 @@ export default function PluginConfigScreen() {
   const router = useRouter();
   const { isDesktop } = useBreakpoint();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { currentBook } = useBookStore();
 
   const [loading, setLoading] = useState(true);
   const [plugin, setPlugin] = useState<PluginResponse | null>(null);
@@ -50,7 +48,7 @@ export default function PluginConfigScreen() {
     if (!plugin) return;
     setSaving(true);
     try {
-      await pluginService.updateConfig(plugin.id, config, currentBook?.id);
+      await pluginService.updateConfig(plugin.id, config);
       showToast('配置已保存');
       setTimeout(() => router.back(), 500);
     } catch {
@@ -89,7 +87,6 @@ export default function PluginConfigScreen() {
             onSave={handleSave}
             onCancel={() => router.back()}
             loading={saving}
-            bookId={currentBook?.id}
           />
         </ScrollView>
       )}

@@ -109,7 +109,6 @@ async def update_plugin_config(
     plugin_id: str,
     user_id: str,
     config: dict,
-    book_id: str | None = None,
 ) -> Plugin:
     """更新插件配置（含校验）"""
     plugin = await get_plugin(db, plugin_id, user_id)
@@ -119,6 +118,8 @@ async def update_plugin_config(
 
     schema = json.loads(plugin.config_schema)
     fields = schema.get("fields", [])
+    # 构建 key→field_def 索引，方便 depends_on 查找
+    field_map = {f["key"]: f for f in fields}
 
     # 校验
     errors = []
@@ -154,17 +155,49 @@ async def update_plugin_config(
             if value not in options:
                 errors.append({"key": key, "error": f"值 '{value}' 不在允许范围内: {options}"})
                 continue
-        if field_type == "account_select" and book_id:
-            # 校验 account_id 存在于用户的账本中
+        if field_type == "book_select":
+            # 校验用户有权访问该账本
+            from app.models.book import Book, BookMember
+            book_result = await db.execute(
+                select(Book).where(Book.id == value)
+            )
+            book = book_result.scalar_one_or_none()
+            if not book:
+                errors.append({"key": key, "error": f"账本 {value} 不存在"})
+                continue
+            if book.owner_id != user_id:
+                member_result = await db.execute(
+                    select(BookMember).where(
+                        BookMember.book_id == value,
+                        BookMember.user_id == user_id,
+                    )
+                )
+                if not member_result.scalar_one_or_none():
+                    errors.append({"key": key, "error": f"无权访问账本 {value}"})
+                    continue
+        if field_type == "account_select":
+            # 从 depends_on 指向的 book_select 字段获取 book_id
+            depends_on = field_def.get("depends_on")
+            if not depends_on or depends_on not in field_map:
+                errors.append({"key": key, "error": "account_select 必须配置 depends_on 指向一个 book_select 字段"})
+                continue
+            dep_field = field_map[depends_on]
+            if dep_field["type"] != "book_select":
+                errors.append({"key": key, "error": f"depends_on 指向的字段 '{depends_on}' 不是 book_select 类型"})
+                continue
+            ref_book_id = config.get(depends_on)
+            if not ref_book_id:
+                errors.append({"key": key, "error": f"请先选择「{dep_field.get('label', depends_on)}」"})
+                continue
             from app.models.account import Account
             result = await db.execute(
                 select(Account).where(
                     Account.id == value,
-                    Account.book_id == book_id,
+                    Account.book_id == ref_book_id,
                 )
             )
             if not result.scalar_one_or_none():
-                errors.append({"key": key, "error": f"科目 {value} 不存在或不属于当前账本"})
+                errors.append({"key": key, "error": f"科目 {value} 不存在或不属于所选账本"})
                 continue
 
         filtered_config[key] = value

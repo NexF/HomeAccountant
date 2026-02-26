@@ -106,10 +106,18 @@ POST /plugins
         "description": "信用卡末四位数字"
       },
       {
+        "key": "target_book",
+        "label": "目标账本",
+        "type": "book_select",
+        "required": true,
+        "description": "选择要记账的目标账本"
+      },
+      {
         "key": "expense_account_id",
         "label": "默认费用科目",
         "type": "account_select",
         "required": true,
+        "depends_on": "target_book",
         "description": "账单默认归入的费用科目"
       },
       {
@@ -117,6 +125,7 @@ POST /plugins
         "label": "信用卡科目",
         "type": "account_select",
         "required": true,
+        "depends_on": "target_book",
         "description": "信用卡对应的负债科目"
       }
     ]
@@ -149,6 +158,7 @@ GET /plugins/{plugin_id}
   "is_configured": true,
   "config": {
     "card_number": "8888",
+    "target_book": "uuid-of-book",
     "expense_account_id": "uuid-of-expense-account",
     "payment_account_id": "uuid-of-credit-card-account"
   },
@@ -334,7 +344,8 @@ else:
 | `number` | 数字输入框 | 数值类型 |
 | `boolean` | 开关 | 布尔值 |
 | `select` | 选项按钮组 | 从预定义选项中选择，需提供 `options` |
-| `account_select` | 科目树选择器 | 从用户账本中选择科目，值为科目 ID |
+| `book_select` | 账本选择器 | 下拉选择用户有权访问的账本，值为 `book_id` |
+| `account_select` | 科目树选择器 | 从指定账本中选择科目，值为科目 ID。**必须**配合 `depends_on` 指向一个 `book_select` 字段 |
 | `secret` | 密码输入框 | 敏感信息（如 Token），输入时隐藏显示 |
 
 ### 6.2 字段定义
@@ -359,8 +370,45 @@ else:
 | `default` | any | 否 | 默认值 |
 | `description` | string | 否 | 描述文字 |
 | `options` | array | 否 | 仅 `select` 类型，格式：`[{ "label": "显示文字", "value": "存储值" }]` |
+| `depends_on` | string | 否 | 级联依赖字段的 `key`。`account_select` 类型**必填**，须指向 `book_select` 字段。前端在依赖字段未选时禁用当前字段，依赖字段变更时自动清空当前值 |
 
-### 6.3 完整示例
+### 6.3 级联依赖（book_select → account_select）
+
+由于插件是**用户级**的（不绑定特定账本），而科目是**账本级**的，因此 `account_select` 字段必须先知道目标账本才能加载正确的科目树。
+
+通过 `depends_on` 实现级联：
+
+```json
+{
+  "fields": [
+    {
+      "key": "target_book",
+      "label": "目标账本",
+      "type": "book_select",
+      "required": true,
+      "description": "选择要记账的目标账本"
+    },
+    {
+      "key": "expense_account_id",
+      "label": "费用科目",
+      "type": "account_select",
+      "required": true,
+      "depends_on": "target_book",
+      "description": "默认费用归入的科目"
+    }
+  ]
+}
+```
+
+**前端行为：**
+- `target_book` 未选时，`expense_account_id` 禁用（灰色 + "请先选择账本"）
+- `target_book` 切换后，`expense_account_id` 值自动清空，科目选择器加载新账本的科目树
+
+**服务端校验：**
+- `book_select`：校验用户有权访问该账本（owner 或 member）
+- `account_select`：从 config 中读取 `depends_on` 指向的 `book_id`，校验科目属于该账本
+
+### 6.4 完整示例
 
 ```json
 {
@@ -384,10 +432,18 @@ else:
       ]
     },
     {
+      "key": "target_book",
+      "label": "目标账本",
+      "type": "book_select",
+      "required": true,
+      "description": "选择要记账的目标账本"
+    },
+    {
       "key": "expense_account_id",
       "label": "费用科目",
       "type": "account_select",
       "required": true,
+      "depends_on": "target_book",
       "description": "默认费用归入的科目"
     },
     {
@@ -429,16 +485,24 @@ def register_plugin():
         "config_schema": {
             "fields": [
                 {
+                    "key": "target_book",
+                    "label": "目标账本",
+                    "type": "book_select",
+                    "required": True,
+                },
+                {
                     "key": "expense_account_id",
                     "label": "默认费用科目",
                     "type": "account_select",
                     "required": True,
+                    "depends_on": "target_book",
                 },
                 {
                     "key": "payment_account_id",
                     "label": "支付账户",
                     "type": "account_select",
                     "required": True,
+                    "depends_on": "target_book",
                 },
             ]
         }
@@ -465,9 +529,10 @@ def update_status(plugin_id: str, status: str, error_message: str = None):
     requests.put(f"{BASE_URL}/plugins/{plugin_id}/status", json=body, headers=HEADERS)
 
 
-def sync_csv(plugin_id: str, book_id: str, csv_path: str):
+def sync_csv(plugin_id: str, csv_path: str):
     """解析 CSV 并批量记账"""
     config = get_config(plugin_id)
+    book_id = config["target_book"]  # 从配置中读取目标账本
     update_status(plugin_id, "running")
 
     try:
@@ -509,8 +574,8 @@ if __name__ == "__main__":
     plugin_id = plugin["id"]
     print(f"插件已注册: {plugin_id}")
 
-    # 替换为你的账本 ID 和 CSV 路径
-    sync_csv(plugin_id, book_id="YOUR_BOOK_ID", csv_path="bills.csv")
+    # 从配置中读取目标账本，直接同步
+    sync_csv(plugin_id, csv_path="bills.csv")
 ```
 
 ---

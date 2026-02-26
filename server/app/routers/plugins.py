@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -62,15 +62,15 @@ async def get_plugin(
 async def update_config(
     plugin_id: str,
     body: PluginConfigUpdateRequest,
-    book_id: str | None = Query(None, description="账本 ID，用于 account_select 类型字段校验"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """更新插件配置。仅支持 JWT 认证。
-    配置值会根据 config_schema 进行校验（必填、类型、select 范围、account_select 存在性）。
+    配置值会根据 config_schema 进行校验（必填、类型、select 范围、book_select 权限、account_select 存在性）。
+    account_select 字段通过 depends_on 引用 book_select 字段获取目标账本 ID。
     """
     return await plugin_service.update_plugin_config(
-        db, plugin_id, user.id, body.config, book_id
+        db, plugin_id, user.id, body.config
     )
 
 

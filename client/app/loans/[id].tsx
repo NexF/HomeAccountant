@@ -5,6 +5,7 @@ import {
   Pressable,
   Alert,
   Platform,
+  StatusBar,
   Modal,
   ActivityIndicator,
   useWindowDimensions,
@@ -366,7 +367,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'web' ? 16 : 52,
+    paddingTop: Platform.OS === 'web' ? 16 : (StatusBar.currentHeight ?? 52) + 8,
     paddingBottom: 8,
   },
   headerBtn: {

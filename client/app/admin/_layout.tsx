@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  ActivityIndicator, Platform,
+  ActivityIndicator, Platform, StatusBar,
 } from 'react-native';
 import { Slot, useRouter, usePathname } from 'expo-router';
 
@@ -161,7 +161,7 @@ const s = StyleSheet.create({
   mobileContainer: { flex: 1 },
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingTop: Platform.OS === 'web' ? 16 : 52, paddingBottom: 12,
+    paddingTop: Platform.OS === 'web' ? 16 : (StatusBar.currentHeight ?? 52) + 8, paddingBottom: 12,
     paddingHorizontal: 16, borderBottomWidth: 1,
   },
   topBarTitle: { fontSize: 17, fontWeight: '600', textAlign: 'center', flex: 1 },

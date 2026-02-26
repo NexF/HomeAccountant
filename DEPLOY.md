@@ -66,6 +66,8 @@ python3 -c "import secrets; print(secrets.token_urlsafe(64))"
 
 ## 前端构建
 
+### Web
+
 ```bash
 cd client
 npx expo export --platform web
@@ -73,6 +75,28 @@ cp -r dist/* /var/www/accountant/
 ```
 
 构建产物输出到 `client/dist/`，需同步到 Nginx 静态目录 `/var/www/accountant/`。
+
+### Android APK
+
+需要 JDK 21+。项目已有 `android` 原生目录（通过 `npx expo run:android` 生成），直接用 Gradle 构建：
+
+```bash
+cd client/android
+
+# macOS 上如果默认 Java 版本不对，指定 JAVA_HOME
+JAVA_HOME=/Users/nexchen/Library/Java/JavaVirtualMachines/openjdk-21.0.2/Contents/Home \
+  ./gradlew assembleRelease
+```
+
+产物路径：`client/android/app/build/outputs/apk/release/app-release.apk`
+
+安装到设备/模拟器：
+
+```bash
+adb install client/android/app/build/outputs/apk/release/app-release.apk
+```
+
+> 如果 `android` 目录不存在，先执行 `cd client && npx expo run:android` 生成原生工程。
 
 ## Nginx 参考配置
 

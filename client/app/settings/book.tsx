@@ -7,6 +7,7 @@ import {
   Modal,
   ActivityIndicator,
   Platform,
+  StatusBar,
   Alert,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'web' ? 16 : 52,
+    paddingTop: Platform.OS === 'web' ? 16 : (StatusBar.currentHeight ?? 52) + 8,
     paddingBottom: 8,
   },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

@@ -8,6 +8,7 @@ import {
   Modal,
   TextInput,
   Platform,
+  StatusBar,
   Alert,
 } from 'react-native';
 import { Text, View } from '@/components/Themed';
@@ -246,7 +247,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: Platform.OS === 'web' ? 16 : (StatusBar.currentHeight ?? 52) + 8,
+    paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backBtn: {

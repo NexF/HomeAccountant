@@ -6,6 +6,8 @@ import {
   TextInput,
   ActivityIndicator,
   Modal,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -597,7 +599,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: Platform.OS === 'web' ? 16 : (StatusBar.currentHeight ?? 52) + 8,
+    paddingBottom: 8,
   },
   backBtn: {
     width: 36,

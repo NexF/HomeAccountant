@@ -4,6 +4,7 @@ import {
   ScrollView,
   Pressable,
   Platform,
+  StatusBar,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -431,10 +432,11 @@ export default function ApiKeysScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'web' ? 16 : (StatusBar.currentHeight ?? 52) + 8,
+    paddingBottom: 8,
     borderBottomWidth: 1,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

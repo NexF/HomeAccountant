@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, ScrollView, Pressable, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
@@ -135,10 +135,11 @@ export default function PluginConfigScreen() {
 const s = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'web' ? 16 : (StatusBar.currentHeight ?? 52) + 8,
+    paddingBottom: 8,
     borderBottomWidth: 1,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

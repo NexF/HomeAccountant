@@ -72,7 +72,6 @@ export default function TabLayout() {
             },
         headerStyle: {
           backgroundColor: colorScheme === 'dark' ? Colors.dark.card : Colors.light.card,
-          height: 60,
         },
         headerTitleStyle: {
           fontSize: 17,

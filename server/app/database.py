@@ -38,6 +38,8 @@ async def init_db():
         await _migrate_users_admin(conn)
         # v0.4.1: plugins 表新增 config_schema / config 字段
         await _migrate_plugin_config(conn)
+        # v0.4.2: plugins 表新增 display_name 字段
+        await _migrate_plugin_display_name(conn)
 
 
 async def _migrate_budgets(conn):
@@ -108,3 +110,16 @@ async def _migrate_plugin_config(conn):
     for col_name, sql in migrations:
         if col_name not in columns:
             await conn.execute(text(sql))
+
+
+async def _migrate_plugin_display_name(conn):
+    """为 plugins 表补充 v0.4.2 新增的 display_name 列"""
+    from sqlalchemy import text
+
+    result = await conn.execute(text("PRAGMA table_info(plugins)"))
+    columns = {row[1] for row in result.fetchall()}
+
+    if "display_name" not in columns:
+        await conn.execute(
+            text("ALTER TABLE plugins ADD COLUMN display_name VARCHAR(100)")
+        )

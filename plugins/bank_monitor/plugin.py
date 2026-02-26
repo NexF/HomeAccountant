@@ -39,7 +39,8 @@ logger = logging.getLogger("bank_monitor_plugin")
 
 # ============ 插件元信息 ============
 
-PLUGIN_NAME = "bank-monitor"
+PLUGIN_NAME_DEFAULT = "bank-monitor"
+PLUGIN_DISPLAY_NAME_DEFAULT = "银行动账记账"
 PLUGIN_DESCRIPTION = "监听微信银行公众号推送，自动检测动账并记账"
 PLUGIN_TYPE = "both"
 
@@ -94,7 +95,8 @@ PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_CONFIG_PATH = os.path.join(PLUGIN_DIR, "config.json")
 
 DEFAULT_PLUGIN_CONFIG = {
-    "plugin_name": "银行动账记账",
+    "plugin_name": "bank-monitor",
+    "plugin_display_name": "银行动账记账",
     "api_url": "http://127.0.0.1:8000",
     "api_key": "",
     "poll_interval_seconds": 60,
@@ -221,12 +223,12 @@ class HAClient:
         self.session.headers["Authorization"] = f"Bearer {api_key}"
         self.session.headers["Content-Type"] = "application/json"
 
-    def register_plugin(self, display_name: str = None) -> dict:
+    def register_plugin(self, plugin_name: str, display_name: str = None) -> dict:
         resp = self.session.post(
             f"{self.base_url}/plugins",
             json={
-                "name": PLUGIN_NAME,
-                "display_name": display_name or PLUGIN_NAME,
+                "name": plugin_name,
+                "display_name": display_name or plugin_name,
                 "type": PLUGIN_TYPE,
                 "description": PLUGIN_DESCRIPTION,
                 "config_schema": CONFIG_SCHEMA,
@@ -351,9 +353,10 @@ def run_plugin(args):
     client = HAClient(api_url, api_key)
 
     # 1. 注册插件（幂等）
-    display_name = pcfg.get("plugin_name", PLUGIN_NAME)
-    logger.info("注册插件到 %s (显示名: %s) ...", api_url, display_name)
-    plugin_data = client.register_plugin(display_name=display_name)
+    plugin_name = pcfg.get("plugin_name", PLUGIN_NAME_DEFAULT)
+    display_name = pcfg.get("plugin_display_name", PLUGIN_DISPLAY_NAME_DEFAULT)
+    logger.info("注册插件到 %s (name: %s, 显示名: %s) ...", api_url, plugin_name, display_name)
+    plugin_data = client.register_plugin(plugin_name, display_name=display_name)
     plugin_id = plugin_data["id"]
     logger.info("插件已注册: id=%s", plugin_id)
 

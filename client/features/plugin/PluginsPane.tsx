@@ -154,7 +154,7 @@ export default function PluginsPane() {
                 {/* Header */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <FontAwesome name="puzzle-piece" size={16} color={Colors.primary} />
-                  <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: colors.text }} numberOfLines={1}>{plugin.name}</Text>
+                  <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: colors.text }} numberOfLines={1}>{plugin.display_name || plugin.name}</Text>
                   {plugin.has_config && (
                     <View style={[ps.configBadge, { backgroundColor: plugin.is_configured ? '#10B98115' : '#F59E0B15' }]}>
                       <View style={[ps.configDot, { backgroundColor: plugin.is_configured ? '#10B981' : '#F59E0B' }]} />
@@ -247,7 +247,7 @@ export default function PluginsPane() {
           <View style={[budgetStyles.content, { backgroundColor: colors.card }]}>
             <Text style={[budgetStyles.title, { color: colors.text }]}>删除插件</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 }}>
-              确定要删除「{deleteTarget?.name}」吗？此操作不可撤销。
+              确定要删除「{deleteTarget?.display_name || deleteTarget?.name}」吗？此操作不可撤销。
             </Text>
             <View style={budgetStyles.btns}>
               <Pressable style={[budgetStyles.btn, { backgroundColor: colors.border }]} onPress={() => setDeleteTarget(null)}>

@@ -29,6 +29,7 @@ class PluginCreateRequest(BaseModel):
 class PluginResponse(BaseModel):
     id: str
     name: str
+    display_name: str | None = None
     type: str
     api_key_id: str
     description: str | None
@@ -98,7 +99,7 @@ class PluginResponse(BaseModel):
                 **{
                     k: getattr(data, k)
                     for k in [
-                        "id", "name", "type", "api_key_id", "description",
+                        "id", "name", "display_name", "type", "api_key_id", "description",
                         "last_sync_at", "last_sync_status", "last_error_message",
                         "sync_count", "created_at", "updated_at",
                     ]
@@ -121,6 +122,7 @@ class PluginResponse(BaseModel):
 class PluginListResponse(BaseModel):
     id: str
     name: str
+    display_name: str | None = None
     type: str
     api_key_id: str
     description: str | None
@@ -168,7 +170,7 @@ class PluginListResponse(BaseModel):
                 **{
                     k: getattr(data, k)
                     for k in [
-                        "id", "name", "type", "api_key_id", "description",
+                        "id", "name", "display_name", "type", "api_key_id", "description",
                         "last_sync_at", "last_sync_status", "last_error_message",
                         "sync_count", "created_at", "updated_at",
                     ]

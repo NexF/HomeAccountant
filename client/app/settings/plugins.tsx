@@ -217,7 +217,7 @@ export default function PluginsScreen() {
           <View style={[styles.modal, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>删除插件</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 }}>
-              确定要删除「{deleteTarget?.name}」吗？此操作不可撤销。
+              确定要删除「{deleteTarget?.display_name || deleteTarget?.name}」吗？此操作不可撤销。
             </Text>
             <View style={styles.modalBtns}>
               <Pressable

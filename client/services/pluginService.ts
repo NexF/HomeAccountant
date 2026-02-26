@@ -18,6 +18,7 @@ export type ConfigSchema = {
 export type PluginResponse = {
   id: string;
   name: string;
+  display_name: string | null;
   type: string; // entry | balance | both
   api_key_id: string;
   description: string | null;

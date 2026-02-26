@@ -26,6 +26,9 @@ class Plugin(Base):
         String(36), ForeignKey("api_keys.id"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, comment="前端显示的插件名称"
+    )
     type: Mapped[str] = mapped_column(String(10), nullable=False)  # entry / balance / both
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_sync_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

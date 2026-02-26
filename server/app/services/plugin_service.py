@@ -37,6 +37,8 @@ async def create_plugin(
             existing.type = body.type
         if body.description is not None:
             existing.description = body.description
+        if body.display_name is not None:
+            existing.display_name = body.display_name
         # v0.4.1: 更新 config_schema，但不覆盖用户已填的 config
         if config_schema_str is not None:
             existing.config_schema = config_schema_str
@@ -49,6 +51,7 @@ async def create_plugin(
         user_id=user_id,
         api_key_id=api_key_id,
         name=body.name,
+        display_name=body.display_name,
         type=body.type,
         description=body.description,
         config_schema=config_schema_str,

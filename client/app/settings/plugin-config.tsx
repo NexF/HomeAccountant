@@ -77,7 +77,7 @@ export default function PluginConfigScreen() {
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={[s.headerTitle, { color: colors.text }]}>
-          {plugin ? `${plugin.name} 配置` : '插件配置'}
+          {plugin ? `${plugin.display_name || plugin.name} 配置` : '插件配置'}
         </Text>
         <View style={{ width: 40 }} />
       </View>

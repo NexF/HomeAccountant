@@ -501,7 +501,7 @@ def run_plugin(args):
                             logger.exception("余额快照提交失败 (非致命)")
 
                 # 成功后保存游标
-                save_state(state, bm_state_path)
+                save_state(state, DEFAULT_STATE_PATH)
 
             except Exception:
                 logger.exception("轮询出错")

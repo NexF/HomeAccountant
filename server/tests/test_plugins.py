@@ -84,6 +84,22 @@ class TestRegisterPlugin:
         assert data["last_sync_status"] == "idle"
         assert data["sync_count"] == 0
         assert data["last_sync_at"] is None
+        assert data["display_name"] is None  # 未提供时为 null
+
+    @pytest.mark.asyncio
+    async def test_register_with_display_name(self, client: AsyncClient, api_key_and_headers):
+        """注册时带 display_name → 响应中包含 display_name"""
+        _, api_headers = api_key_and_headers
+        resp = await client.post("/plugins", json={
+            "name": "bank-monitor-boc",
+            "type": "entry",
+            "description": "中国银行动账监控",
+            "display_name": "中国银行动账记账",
+        }, headers=api_headers)
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["name"] == "bank-monitor-boc"
+        assert data["display_name"] == "中国银行动账记账"
 
     @pytest.mark.asyncio
     async def test_register_idempotent(self, client: AsyncClient, api_key_and_headers, plugin_data):
@@ -101,6 +117,29 @@ class TestRegisterPlugin:
         assert resp2.json()["description"] == "更新后的描述"
 
     @pytest.mark.asyncio
+    async def test_register_idempotent_updates_display_name(self, client: AsyncClient, api_key_and_headers):
+        """幂等注册时可更新 display_name"""
+        _, api_headers = api_key_and_headers
+        resp1 = await client.post("/plugins", json={
+            "name": "bank-monitor",
+            "type": "entry",
+            "display_name": "银行动账 v1",
+        }, headers=api_headers)
+        assert resp1.status_code == 201
+        plugin_id = resp1.json()["id"]
+        assert resp1.json()["display_name"] == "银行动账 v1"
+
+        # 再次注册更新 display_name
+        resp2 = await client.post("/plugins", json={
+            "name": "bank-monitor",
+            "type": "entry",
+            "display_name": "银行动账 v2",
+        }, headers=api_headers)
+        assert resp2.status_code == 200
+        assert resp2.json()["id"] == plugin_id
+        assert resp2.json()["display_name"] == "银行动账 v2"
+
+    @pytest.mark.asyncio
     async def test_register_different_names(self, client: AsyncClient, api_key_and_headers):
         """不同名称 → 创建不同插件"""
         _, api_headers = api_key_and_headers
@@ -113,6 +152,26 @@ class TestRegisterPlugin:
         assert resp1.status_code == 201
         assert resp2.status_code == 201
         assert resp1.json()["id"] != resp2.json()["id"]
+
+    @pytest.mark.asyncio
+    async def test_register_multi_instance_with_display_name(self, client: AsyncClient, api_key_and_headers):
+        """同类型插件通过不同 name 注册多实例，各自有独立的 display_name"""
+        _, api_headers = api_key_and_headers
+        resp1 = await client.post("/plugins", json={
+            "name": "bank-monitor-boc",
+            "type": "entry",
+            "display_name": "中国银行动账记账",
+        }, headers=api_headers)
+        resp2 = await client.post("/plugins", json={
+            "name": "bank-monitor-cmb",
+            "type": "entry",
+            "display_name": "招商银行动账记账",
+        }, headers=api_headers)
+        assert resp1.status_code == 201
+        assert resp2.status_code == 201
+        assert resp1.json()["id"] != resp2.json()["id"]
+        assert resp1.json()["display_name"] == "中国银行动账记账"
+        assert resp2.json()["display_name"] == "招商银行动账记账"
 
     @pytest.mark.asyncio
     async def test_register_requires_api_key(self, client: AsyncClient, auth_headers, plugin_data):
@@ -165,6 +224,7 @@ class TestListPlugins:
         data = resp.json()
         assert len(data) == 1
         assert data[0]["name"] == "微信账单同步"
+        assert "display_name" in data[0]  # 列表中包含 display_name 字段
 
     @pytest.mark.asyncio
     async def test_list_with_api_key(self, client: AsyncClient, registered_plugin):
@@ -205,6 +265,7 @@ class TestGetPlugin:
         assert resp.status_code == 200
         assert resp.json()["id"] == plugin_id
         assert resp.json()["name"] == "微信账单同步"
+        assert "display_name" in resp.json()  # 详情中包含 display_name 字段
 
     @pytest.mark.asyncio
     async def test_get_nonexistent(self, client: AsyncClient, auth_headers):

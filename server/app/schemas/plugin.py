@@ -17,6 +17,7 @@ class PluginConfigUpdateRequest(BaseModel):
 
 class PluginCreateRequest(BaseModel):
     name: str = Field(..., max_length=100, description="插件名称")
+    display_name: str | None = Field(None, max_length=100, description="前端显示的插件名称")
     type: Literal["entry", "balance", "both"] = Field(..., description="插件类型")
     description: str | None = Field(None, description="插件描述")
     config_schema: dict[str, Any] | None = Field(

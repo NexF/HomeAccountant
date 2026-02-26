@@ -158,6 +158,7 @@ class TestApiKeyFullFlow:
                 "name": "微信账单同步",
                 "type": "entry",
                 "description": "自动同步微信支付账单",
+                "display_name": "微信账单自动同步",
             },
             headers=api_headers,
         )
@@ -166,6 +167,7 @@ class TestApiKeyFullFlow:
         plugin_id = plugin_data["id"]
         assert plugin_data["last_sync_status"] == "idle"
         assert plugin_data["sync_count"] == 0
+        assert plugin_data["display_name"] == "微信账单自动同步"
 
         # ── Step 3: 状态上报 → running ──
         status_resp = await client.put(

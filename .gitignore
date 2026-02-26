@@ -45,3 +45,9 @@ server/.pytest_cache/
 
 # CodeBuddy
 .codebuddy/
+
+# Plugins
+plugins/*/config.json
+plugins/*/state.json
+plugins/*/bank_monitor_config.json
+plugins/*/wechat_db_keys.json

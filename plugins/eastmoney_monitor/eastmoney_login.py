@@ -95,8 +95,18 @@ def ocr_captcha(image_bytes: bytes) -> str:
     return result
 
 
-def login():
-    """一步到位：获取验证码 → OCR → 登录"""
+def login(account: str = None, password: str = None):
+    """一步到位：获取验证码 → OCR → 登录
+    
+    account/password 可通过参数传入，未传则从环境变量 EM_ACCOUNT/EM_PASSWORD 读取。
+    """
+    account = account or os.environ.get("EM_ACCOUNT", "") or ACCOUNT
+    password = password or os.environ.get("EM_PASSWORD", "") or PASSWORD
+
+    if not account or not password:
+        print("[-] 未配置账号密码，请设置环境变量 EM_ACCOUNT / EM_PASSWORD")
+        return None
+
     session = create_session()
 
     # Step 1: 访问登录页面
@@ -108,7 +118,7 @@ def login():
     print(f"    OK. Cookies: {dict(session.cookies)}")
 
     # 加密密码（只需一次）
-    encrypted_password = rsa_encrypt(PASSWORD)
+    encrypted_password = rsa_encrypt(password)
 
     for attempt in range(1, MAX_RETRY + 1):
         print(f"\n--- 尝试第 {attempt}/{MAX_RETRY} 次 ---")
@@ -135,9 +145,9 @@ def login():
             continue
 
         # Step 4: 提交登录
-        print(f"[4] 提交登录 (account={ACCOUNT}, code={verify_code})...")
+        print(f"[4] 提交登录 (account={account}, code={verify_code})...")
         login_data = {
-            "userId": ACCOUNT,
+            "userId": account,
             "password": encrypted_password,
             "randNumber": rand_num,
             "identifyCode": verify_code,
@@ -177,6 +187,9 @@ def login():
             if "验证码" in message or "信息有误" in message:
                 print("    可能是验证码错误，重新获取...")
                 continue
+            elif "密码" in message or "解密" in message:
+                print("    [!] 密码解密失败，RSA 公钥可能已过期，请从东方财富前端 JS 重新提取公钥")
+                return None
             else:
                 print("    停止重试")
                 return None

@@ -21,12 +21,12 @@ User-Agent: Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X) AppleWebKit/605.1.15 .
 │          │                     │          │
 │          │  GET /Login/YZM     │          │
 │          │ ──────────────────► │          │   获取验证码图片
-│          │ ◄── image/png ──── │          │   (服务端通过 randNum 关联)
+│          │ ◄── image/png ────  │          │   (服务端通过 randNum 关联)
 │          │                     │          │
 │          │  POST /Login/       │          │
 │          │  Authentication     │          │   提交登录
 │          │ ──────────────────► │          │
-│          │ ◄── JSON ───────── │          │
+│          │ ◄── JSON ─────────  │          │
 └──────────┘                     └──────────┘
 ```
 

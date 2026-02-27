@@ -25,7 +25,8 @@ import argparse
 
 import requests
 
-from wx_bank_monitor import (
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "wx_monitor"))
+from bank_monitor import (
     WechatBizDB,
     load_config,
     load_state,

@@ -26,7 +26,8 @@ from datetime import datetime, timedelta
 
 import requests
 
-from .eastmoney_login import login as em_login
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from eastmoney_login import login as em_login
 
 logger = logging.getLogger("eastmoney_monitor")
 

@@ -107,8 +107,9 @@ export default function DataImportScreen() {
       }
       const res = await importService.upload(bookId, formData);
       setUploadResult(res.data);
-      // 重置预览状态
-      setFilters({ direction: null, paymentMethod: null });
+      // 重置预览状态，direction 默认选第一个方向
+      const firstDir = res.data.filters?.directions?.[0] ?? null;
+      setFilters({ direction: firstDir, paymentMethod: null });
       setSelectedIndexes(new Set());
       setImportedIndexes(new Set());
       setTargetAccountId(null); setTargetAccountName('');

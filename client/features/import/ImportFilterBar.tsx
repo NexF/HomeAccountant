@@ -53,9 +53,6 @@ export default function ImportFilterBar({ filters, value, onChange }: Props) {
       {/* Direction filter */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>
         <Text style={[s.label, { color: colors.textSecondary }]}>收/支</Text>
-        {renderChip('全部', value.direction === null, () =>
-          onChange({ ...value, direction: null })
-        )}
         {filters.directions.map((d) =>
           renderChip(d, value.direction === d, () =>
             onChange({ ...value, direction: d })

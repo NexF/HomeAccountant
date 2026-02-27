@@ -1,0 +1,36 @@
+{
+  "poll_interval_seconds": 60,
+  "banks": [
+    {
+      "name": "中国银行",
+      "gh_id": "",
+      "nick_name_pattern": "中国银行微银行",
+      "patterns": [
+        {
+          "title_match": "交易成功提醒|入账提醒|消费提醒",
+          "fields": {
+            "transaction_time": "交易时间[：:]\\s*(.+)",
+            "transaction_type": "交易类型[：:]\\s*(.+)",
+            "amount": "交易金额[：:]\\s*(?:人民币\\s*)?([\\d,.]+)",
+            "balance": "(?:账户余额|可用余额)[：:]\\s*(?:人民币\\s*)?([\\d,.]+)",
+            "card_suffix": "尾号(\\d{4})"
+          },
+          "direction_rules": [
+            {"keyword": "入账", "direction": "in"},
+            {"keyword": "退款", "direction": "in"},
+            {"keyword": "转入", "direction": "in"},
+            {"keyword": "提现", "direction": "in"},
+            {"keyword": "支付", "direction": "out"},
+            {"keyword": "消费", "direction": "out"},
+            {"keyword": "扣款", "direction": "out"},
+            {"keyword": "转出", "direction": "out"}
+          ]
+        }
+      ]
+    }
+  ],
+  "output": {
+    "mode": "stdout",
+    "format": "json"
+  }
+}

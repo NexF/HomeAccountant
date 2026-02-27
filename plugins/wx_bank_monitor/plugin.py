@@ -2,11 +2,11 @@
 """
 银行动账自动记账插件
 
-将 wx_monitor.bank_monitor 检测到的银行交易自动推送到 HomeAccountant 记账系统。
+将 wx_monitor.wx_bank_monitor 检测到的银行交易自动推送到 HomeAccountant 记账系统。
 
 运行方式:
   # 首次运行: 交互式设置（在插件目录下）
-  cd plugins/bank_monitor && python3 plugin.py --setup
+  cd plugins/wx_bank_monitor && python3 plugin.py --setup
 
   # 持续轮询
   python3 plugin.py
@@ -25,7 +25,7 @@ import argparse
 
 import requests
 
-from bank_monitor import (
+from wx_bank_monitor import (
     WechatBizDB,
     load_config,
     load_state,
@@ -35,11 +35,11 @@ from bank_monitor import (
     process_one_bank,
 )
 
-logger = logging.getLogger("bank_monitor_plugin")
+logger = logging.getLogger("wx_bank_monitor_plugin")
 
 # ============ 插件元信息 ============
 
-PLUGIN_NAME_DEFAULT = "bank-monitor"
+PLUGIN_NAME_DEFAULT = "wx-bank-monitor"
 PLUGIN_DISPLAY_NAME_DEFAULT = "银行动账记账"
 PLUGIN_DESCRIPTION = "监听微信银行公众号推送，自动检测动账并记账"
 PLUGIN_TYPE = "both"
@@ -95,7 +95,7 @@ PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_CONFIG_PATH = os.path.join(PLUGIN_DIR, "config.json")
 
 DEFAULT_PLUGIN_CONFIG = {
-    "plugin_name": "bank-monitor",
+    "plugin_name": "wx-bank-monitor",
     "plugin_display_name": "银行动账记账",
     "api_url": "http://127.0.0.1:8000",
     "api_key": "",
@@ -172,9 +172,9 @@ def cmd_setup():
     # wx_monitor 相关路径
     print("\n--- wx_monitor 路径配置 ---")
     default_bm_config = defaults.get("wx_monitor_config", "")
-    bm_config = input(f"bank_monitor 配置文件{f' [{default_bm_config}]' if default_bm_config else ''}: ").strip() or default_bm_config
+    bm_config = input(f"wx_bank_monitor 配置文件{f' [{default_bm_config}]' if default_bm_config else ''}: ").strip() or default_bm_config
     if not bm_config:
-        print("[-] bank_monitor 配置文件路径不能为空")
+        print("[-] wx_bank_monitor 配置文件路径不能为空")
         sys.exit(1)
 
     default_keys = defaults.get("wx_monitor_keys", "")
@@ -286,7 +286,7 @@ def parse_amount(raw: str | None) -> float | None:
 
 
 def record_to_entry(record: dict, plugin_config: dict) -> dict | None:
-    """将 bank_monitor 的 record 转换为 HomeAccountant 分录格式。"""
+    """将 wx_bank_monitor 的 record 转换为 HomeAccountant 分录格式。"""
     direction = record.get("direction")
     if direction not in ("in", "out"):
         logger.warning(
@@ -375,7 +375,7 @@ def run_plugin(args):
 
     logger.info("用户配置: book_id=%s, sync_balance=%s", book_id, sync_balance)
 
-    # 3. 加载 wx_monitor / bank_monitor 配置
+    # 3. 加载 wx_monitor / wx_bank_monitor 配置
     bm_config_path = pcfg.get("wx_monitor_config")
     bm_keys_path = pcfg.get("wx_monitor_keys") or None
 

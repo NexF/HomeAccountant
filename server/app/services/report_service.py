@@ -81,29 +81,24 @@ async def get_balance_sheet(
     资产负债表（截至指定日期）
 
     1. 遍历所有科目（含收入/费用用于计算本期损益）
-    2. 汇总每个科目截至指定日期的余额
-    3. 本期损益 = 收入合计 - 费用合计
-    4. 校验：资产合计 == 负债合计 + 净资产合计
+    2. 构建树形结构，子科目余额向上汇总到父科目
+    3. 合计只累加根科目，避免重复计数
+    4. 本期损益 = 收入合计 - 费用合计
+    5. 校验：资产合计 == 负债合计 + 净资产合计
     """
 
     next_day = datetime(as_of_date.year, as_of_date.month, as_of_date.day) + timedelta(days=1)
     date_filter = [JournalEntry.entry_date < next_day]
     rows = await _query_account_balances(db, book_id, date_filter)
 
-    assets = []
-    liabilities = []
-    equities = []
-    income_total = Decimal("0")
-    expense_total = Decimal("0")
-    total_asset = Decimal("0")
-    total_liability = Decimal("0")
-    total_equity = Decimal("0")
+    # 先构建所有科目的 item dict，按类型分桶
+    items_by_id: dict[str, dict] = {}
+    children_map: dict[str, list[str]] = {}  # parent_id -> [child_ids]
 
     for row in rows:
         total_debit = Decimal(str(row.total_debit))
         total_credit = Decimal(str(row.total_credit))
 
-        # balance 按科目自身的余额方向计算（用于显示）
         if row.balance_direction == "debit":
             balance = total_debit - total_credit
         else:
@@ -119,23 +114,79 @@ async def get_balance_sheet(
             "debit_total": float(total_debit),
             "credit_total": float(total_credit),
             "balance": float(balance),
+            "_raw_debit_minus_credit": float(total_debit - total_credit),
         }
+        items_by_id[row.id] = item
 
-        if row.type == "asset":
+        if row.parent_id:
+            children_map.setdefault(row.parent_id, []).append(row.id)
+
+    # 自底向上汇总：如果父科目存在于当前结果集中，把子科目余额加到父科目
+    def sum_up(account_id: str) -> tuple[float, float]:
+        """返回 (balance, raw_debit_minus_credit) 的子树汇总"""
+        item = items_by_id[account_id]
+        child_ids = children_map.get(account_id, [])
+        if not child_ids:
+            return item["balance"], item["_raw_debit_minus_credit"]
+
+        total_bal = Decimal("0")
+        total_raw = Decimal("0")
+        for cid in child_ids:
+            if cid in items_by_id:
+                cb, cr = sum_up(cid)
+                total_bal += Decimal(str(cb))
+                total_raw += Decimal(str(cr))
+
+        item["balance"] = float(total_bal)
+        item["_raw_debit_minus_credit"] = float(total_raw)
+        return item["balance"], item["_raw_debit_minus_credit"]
+
+    # 找出所有根节点（无父或父不在当前结果集中）并汇总
+    root_ids = [
+        aid for aid, item in items_by_id.items()
+        if not item["parent_id"] or item["parent_id"] not in items_by_id
+    ]
+    for rid in root_ids:
+        sum_up(rid)
+
+    # 分类、只用根科目做合计
+    assets = []
+    liabilities = []
+    equities = []
+    income_total = Decimal("0")
+    expense_total = Decimal("0")
+    total_asset = Decimal("0")
+    total_liability = Decimal("0")
+    total_equity = Decimal("0")
+
+    for item in items_by_id.values():
+        # 清除内部字段
+        raw_dc = item.pop("_raw_debit_minus_credit")
+        is_root = item["account_id"] in root_ids
+
+        if item["account_type"] == "asset":
             assets.append(item)
-            # 资产类统一用 debit - credit 汇总，
-            # 这样抵减科目（如累计折旧 1502, balance_direction=credit）自动为负数
-            total_asset += (total_debit - total_credit)
-        elif row.type == "liability":
+            if is_root:
+                total_asset += Decimal(str(raw_dc))
+        elif item["account_type"] == "liability":
             liabilities.append(item)
-            total_liability += balance
-        elif row.type == "equity":
+            if is_root:
+                total_liability += Decimal(str(item["balance"]))
+        elif item["account_type"] == "equity":
             equities.append(item)
-            total_equity += balance
-        elif row.type == "income":
-            income_total += balance
-        elif row.type == "expense":
-            expense_total += balance
+            if is_root:
+                total_equity += Decimal(str(item["balance"]))
+        elif item["account_type"] == "income":
+            if is_root:
+                income_total += Decimal(str(item["balance"]))
+        elif item["account_type"] == "expense":
+            if is_root:
+                expense_total += Decimal(str(item["balance"]))
+
+    # 按 code 排序
+    assets.sort(key=lambda x: x["account_code"])
+    liabilities.sort(key=lambda x: x["account_code"])
+    equities.sort(key=lambda x: x["account_code"])
 
     net_income = income_total - expense_total
     adjusted_equity = total_equity + net_income
@@ -164,8 +215,8 @@ async def get_income_statement(
     """
     损益表（指定时间段）
 
-    1. 汇总时间段内所有收入科目贷方合计
-    2. 汇总时间段内所有费用科目借方合计
+    1. 构建树形结构，子科目余额向上汇总到父科目
+    2. 合计只累加根科目，避免重复计数
     3. 本期损益 = 收入 - 费用
     """
 
@@ -178,10 +229,8 @@ async def get_income_statement(
         db, book_id, date_filter, type_filter=["income", "expense"]
     )
 
-    incomes = []
-    expenses = []
-    total_income = Decimal("0")
-    total_expense = Decimal("0")
+    items_by_id: dict[str, dict] = {}
+    children_map: dict[str, list[str]] = {}
 
     for row in rows:
         total_debit = Decimal(str(row.total_debit))
@@ -203,13 +252,48 @@ async def get_income_statement(
             "credit_total": float(total_credit),
             "balance": float(balance),
         }
+        items_by_id[row.id] = item
 
-        if row.type == "income":
+        if row.parent_id:
+            children_map.setdefault(row.parent_id, []).append(row.id)
+
+    def sum_up(account_id: str) -> float:
+        item = items_by_id[account_id]
+        child_ids = children_map.get(account_id, [])
+        if not child_ids:
+            return item["balance"]
+        total = Decimal("0")
+        for cid in child_ids:
+            if cid in items_by_id:
+                total += Decimal(str(sum_up(cid)))
+        item["balance"] = float(total)
+        return item["balance"]
+
+    root_ids = [
+        aid for aid, item in items_by_id.items()
+        if not item["parent_id"] or item["parent_id"] not in items_by_id
+    ]
+    for rid in root_ids:
+        sum_up(rid)
+
+    incomes = []
+    expenses = []
+    total_income = Decimal("0")
+    total_expense = Decimal("0")
+
+    for item in items_by_id.values():
+        is_root = item["account_id"] in root_ids
+        if item["account_type"] == "income":
             incomes.append(item)
-            total_income += balance
-        elif row.type == "expense":
+            if is_root:
+                total_income += Decimal(str(item["balance"]))
+        elif item["account_type"] == "expense":
             expenses.append(item)
-            total_expense += balance
+            if is_root:
+                total_expense += Decimal(str(item["balance"]))
+
+    incomes.sort(key=lambda x: x["account_code"])
+    expenses.sort(key=lambda x: x["account_code"])
 
     net_income = total_income - total_expense
 

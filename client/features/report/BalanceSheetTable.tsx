@@ -1,5 +1,6 @@
-import React from 'react';
-import { StyleSheet } from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { StyleSheet, Pressable } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -15,11 +16,58 @@ function formatMoney(v: number): string {
   return v < 0 ? `-¥${formatted}` : `¥${formatted}`;
 }
 
+type TreeNode = AccountBalanceItem & { children: TreeNode[]; depth: number };
+
+function buildTree(items: AccountBalanceItem[]): TreeNode[] {
+  const map = new Map<string, TreeNode>();
+  const roots: TreeNode[] = [];
+
+  for (const item of items) {
+    map.set(item.account_id, { ...item, children: [], depth: 0 });
+  }
+
+  for (const item of items) {
+    const node = map.get(item.account_id)!;
+    if (item.parent_id && map.has(item.parent_id)) {
+      const parent = map.get(item.parent_id)!;
+      node.depth = parent.depth + 1;
+      parent.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
+}
+
+function flattenTree(nodes: TreeNode[], collapsed: Set<string>): TreeNode[] {
+  const result: TreeNode[] = [];
+  for (const node of nodes) {
+    result.push(node);
+    if (node.children.length > 0 && !collapsed.has(node.account_id)) {
+      result.push(...flattenTree(node.children, collapsed));
+    }
+  }
+  return result;
+}
+
 type Props = {
   data: BalanceSheetResponse;
 };
 
-function AccountRow({ item, colors }: { item: AccountBalanceItem; colors: any }) {
+function AccountTreeRow({
+  item,
+  hasChildren,
+  isCollapsed,
+  onToggle,
+  colors,
+}: {
+  item: TreeNode;
+  hasChildren: boolean;
+  isCollapsed: boolean;
+  onToggle: () => void;
+  colors: any;
+}) {
   const balanceColor =
     item.balance > 0
       ? item.account_type === 'liability'
@@ -29,14 +77,33 @@ function AccountRow({ item, colors }: { item: AccountBalanceItem; colors: any })
       ? Colors.liability
       : colors.text;
 
+  const isParent = hasChildren;
+  const indent = item.depth * 20;
+
   return (
-    <View style={[styles.row, { borderBottomColor: colors.border }]}>
-      <View style={styles.nameCell}>
+    <Pressable
+      style={[styles.row, { borderBottomColor: colors.border }]}
+      onPress={hasChildren ? onToggle : undefined}
+      disabled={!hasChildren}
+    >
+      <View style={[styles.nameCell, { paddingLeft: indent }]}>
+        {isParent ? (
+          <FontAwesome
+            name={isCollapsed ? 'caret-right' : 'caret-down'}
+            size={12}
+            color={colors.textSecondary}
+            style={styles.caretIcon}
+          />
+        ) : (
+          <View style={styles.caretPlaceholder} />
+        )}
         <Text style={[styles.code, { color: colors.textSecondary }]}>{item.account_code}</Text>
-        <Text style={[styles.name, { color: colors.text }]}>{item.account_name}</Text>
+        <Text style={[styles.name, { color: colors.text }, isParent && styles.parentName]}>
+          {item.account_name}
+        </Text>
       </View>
       <Text style={[styles.amount, { color: balanceColor }]}>{formatMoney(item.balance)}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -57,13 +124,85 @@ function SectionCard({ title, items, totalLabel, totalAmount, totalColor, colors
   totalColor?: string;
   colors: any;
 }) {
+  const tree = useMemo(() => buildTree(items), [items]);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const visibleNodes = useMemo(() => flattenTree(tree, collapsed), [tree, collapsed]);
+
+  const toggle = useCallback((id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
   return (
     <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
-      {items.map((a) => (
-        <AccountRow key={a.account_id} item={a} colors={colors} />
+      {visibleNodes.map((node) => (
+        <AccountTreeRow
+          key={node.account_id}
+          item={node}
+          hasChildren={node.children.length > 0}
+          isCollapsed={collapsed.has(node.account_id)}
+          onToggle={() => toggle(node.account_id)}
+          colors={colors}
+        />
       ))}
       <TotalRow label={totalLabel} amount={totalAmount} color={totalColor} colors={colors} />
+    </View>
+  );
+}
+
+function EquitySectionCard({ data, colors }: { data: BalanceSheetResponse; colors: any }) {
+  const tree = useMemo(() => buildTree(data.equities), [data.equities]);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const visibleNodes = useMemo(() => flattenTree(tree, collapsed), [tree, collapsed]);
+
+  const toggle = useCallback((id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  return (
+    <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>净资产</Text>
+      {visibleNodes.map((node) => (
+        <AccountTreeRow
+          key={node.account_id}
+          item={node}
+          hasChildren={node.children.length > 0}
+          isCollapsed={collapsed.has(node.account_id)}
+          onToggle={() => toggle(node.account_id)}
+          colors={colors}
+        />
+      ))}
+      {data.net_income !== 0 && (
+        <View style={[styles.row, { borderBottomColor: colors.border }]}>
+          <View style={styles.nameCell}>
+            <View style={styles.caretPlaceholder} />
+            <Text style={[styles.code, { color: colors.textSecondary }]}>--</Text>
+            <Text style={[styles.name, { color: colors.text }]}>本期损益</Text>
+          </View>
+          <Text
+            style={[
+              styles.amount,
+              { color: data.net_income >= 0 ? Colors.asset : Colors.liability },
+            ]}
+          >
+            {formatMoney(data.net_income)}
+          </Text>
+        </View>
+      )}
+      <TotalRow
+        label="净资产合计"
+        amount={data.adjusted_equity}
+        color={Colors.primary}
+        colors={colors}
+      />
     </View>
   );
 }
@@ -101,34 +240,10 @@ export default function BalanceSheetTable({ data }: Props) {
           colors={colors}
         />
       )}
-      <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>净资产</Text>
-        {data.equities.map((a) => (
-          <AccountRow key={a.account_id} item={a} colors={colors} />
-        ))}
-        {data.net_income !== 0 && (
-          <View style={[styles.row, { borderBottomColor: colors.border }]}>
-            <View style={styles.nameCell}>
-              <Text style={[styles.code, { color: colors.textSecondary }]}>--</Text>
-              <Text style={[styles.name, { color: colors.text }]}>本期损益</Text>
-            </View>
-            <Text
-              style={[
-                styles.amount,
-                { color: data.net_income >= 0 ? Colors.asset : Colors.liability },
-              ]}
-            >
-              {formatMoney(data.net_income)}
-            </Text>
-          </View>
-        )}
-        <TotalRow
-          label="净资产合计"
-          amount={data.adjusted_equity}
-          color={Colors.primary}
+      <EquitySectionCard
+          data={data}
           colors={colors}
         />
-      </View>
     </View>
   );
 
@@ -272,6 +387,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: 8,
+  },
+  caretIcon: {
+    width: 12,
+    textAlign: 'center',
+  },
+  caretPlaceholder: {
+    width: 12,
+  },
+  parentName: {
+    fontWeight: '600',
   },
   code: {
     fontSize: 12,

@@ -70,8 +70,10 @@ export default function DashboardScreen() {
       const now = new Date();
       const y = now.getFullYear();
       const m = now.getMonth();
-      const monthStart = new Date(y, m, 1).toISOString().slice(0, 10);
-      const monthEnd = new Date(y, m + 1, 0).toISOString().slice(0, 10);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const monthStart = fmt(new Date(y, m, 1));
+      const monthEnd = fmt(new Date(y, m + 1, 0));
 
       const [dashRes, trendRes, expRes, pendingRes] = await Promise.all([
         reportService.getDashboard(currentBook.id),

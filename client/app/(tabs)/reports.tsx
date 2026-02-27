@@ -30,23 +30,28 @@ import BarChart from '@/features/chart/BarChart';
 
 type Tab = 'balance' | 'income' | 'trends';
 
+function toLocalDateStr(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateStr(new Date());
 }
 
 function getMonthRange(): { start: string; end: string } {
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
-  const start = new Date(y, m, 1).toISOString().slice(0, 10);
-  const end = new Date(y, m + 1, 0).toISOString().slice(0, 10);
+  const start = toLocalDateStr(new Date(y, m, 1));
+  const end = toLocalDateStr(new Date(y, m + 1, 0));
   return { start, end };
 }
 
 function getDefaultTrendRange(): { start: string; end: string } {
   const now = new Date();
-  const end = now.toISOString().slice(0, 10);
-  const start = new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString().slice(0, 10);
+  const end = toLocalDateStr(now);
+  const start = toLocalDateStr(new Date(now.getFullYear() - 1, now.getMonth(), 1));
   return { start, end };
 }
 

@@ -20,8 +20,10 @@ function getMonthRange(): { start: string; end: string } {
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
-  const start = new Date(y, m, 1).toISOString().slice(0, 10);
-  const end = new Date(y, m + 1, 0).toISOString().slice(0, 10);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const start = fmt(new Date(y, m, 1));
+  const end = fmt(new Date(y, m + 1, 0));
   return { start, end };
 }
 

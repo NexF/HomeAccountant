@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, Modal, Platform } from 'react-native';
+import { StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal, Platform } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Text, View } from '@/components/Themed';
+import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as Clipboard from 'expo-clipboard';

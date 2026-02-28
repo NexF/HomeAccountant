@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet,
+  View, Text, Pressable, StyleSheet,
   ActivityIndicator, Platform, StatusBar,
 } from 'react-native';
+import { TextInput } from '@/components/Themed';
 import { Slot, useRouter, usePathname } from 'expo-router';
 
 import { useAdminStore } from '@/stores/adminStore';

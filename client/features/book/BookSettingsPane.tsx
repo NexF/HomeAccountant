@@ -4,13 +4,13 @@ import {
   Text,
   Pressable,
   ScrollView,
-  TextInput,
   Modal,
   ActivityIndicator,
   StyleSheet,
   Platform,
   Alert,
 } from 'react-native';
+import { TextInput } from '@/components/Themed';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import Colors from '@/constants/Colors';

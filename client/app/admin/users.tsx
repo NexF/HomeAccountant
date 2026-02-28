@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, Pressable, FlatList,
+  View, Text, Pressable, FlatList,
   StyleSheet, ActivityIndicator, Platform,
 } from 'react-native';
+import { TextInput } from '@/components/Themed';
 import { useRouter } from 'expo-router';
 
 import { useColorScheme } from '@/components/useColorScheme';

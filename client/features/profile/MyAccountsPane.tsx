@@ -3,12 +3,11 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  TextInput,
   ActivityIndicator,
   Modal,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Text, View } from '@/components/Themed';
+import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';

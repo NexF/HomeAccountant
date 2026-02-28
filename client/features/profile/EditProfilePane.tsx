@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Pressable, Alert, Platform, ScrollView, TextInput, ActivityIndicator } from 'react-native';
-import { Text, View } from '@/components/Themed';
+import { Pressable, Alert, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuthStore } from '@/stores/authStore';

@@ -6,12 +6,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
-  TextInput,
   Platform,
   StatusBar,
   Alert,
 } from 'react-native';
-import { Text, View } from '@/components/Themed';
+import { Text, TextInput, View } from '@/components/Themed';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/Colors';

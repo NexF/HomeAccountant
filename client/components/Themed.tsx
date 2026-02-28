@@ -3,7 +3,12 @@
  * https://docs.expo.io/guides/color-schemes/
  */
 
-import { Text as DefaultText, View as DefaultView } from 'react-native';
+import {
+  Platform,
+  Text as DefaultText,
+  TextInput as DefaultTextInput,
+  View as DefaultView,
+} from 'react-native';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from './useColorScheme';
@@ -14,6 +19,7 @@ type ThemeProps = {
 };
 
 export type TextProps = ThemeProps & DefaultText['props'];
+export type TextInputProps = DefaultTextInput['props'];
 export type ViewProps = ThemeProps & DefaultView['props'];
 
 export function useThemeColor(
@@ -48,6 +54,19 @@ export function View(props: ViewProps) {
   return (
     <DefaultView
       style={[hasExplicitColor ? { backgroundColor } : undefined, style]}
+      {...otherProps}
+    />
+  );
+}
+
+export function TextInput(props: TextInputProps) {
+  const { style, ...otherProps } = props;
+  return (
+    <DefaultTextInput
+      style={[
+        Platform.OS === 'android' ? { textAlignVertical: 'center' } : undefined,
+        style,
+      ]}
       {...otherProps}
     />
   );

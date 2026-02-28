@@ -6,14 +6,13 @@ import {
   Platform,
   StatusBar,
   Modal,
-  TextInput,
   ActivityIndicator,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { Text, View } from '@/components/Themed';
+import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import {

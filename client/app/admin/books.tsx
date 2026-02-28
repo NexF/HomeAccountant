@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, FlatList,
+  View, Text, FlatList,
   StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { TextInput } from '@/components/Themed';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBreakpoint } from '@/hooks/useBreakpoint';

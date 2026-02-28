@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, Pressable, ScrollView,
+  View, Text, Pressable, ScrollView,
   StyleSheet, ActivityIndicator, Modal, Platform,
 } from 'react-native';
+import { TextInput } from '@/components/Themed';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 

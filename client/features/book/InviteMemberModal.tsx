@@ -4,12 +4,12 @@ import {
   Text,
   Pressable,
   Modal,
-  TextInput,
   ActivityIndicator,
   StyleSheet,
   Platform,
   Alert,
 } from 'react-native';
+import { TextInput } from '@/components/Themed';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';

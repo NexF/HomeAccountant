@@ -1,4 +1,4 @@
-# 家庭记账 - 技术方案文档 (Tech Spec)
+# 咕咕记账 - 技术方案文档 (Tech Spec)
 
 > **版本：v0.2.1**
 > **创建日期：2026-02-14**
@@ -98,14 +98,14 @@ config = MCPConfig()
 
 **文件：`server/mcp_server/client.py`**
 
-封装所有对家庭记账 REST API 的 HTTP 调用：
+封装所有对咕咕记账 REST API 的 HTTP 调用：
 
 ```python
 import httpx
 from .config import config
 
 class HAClient:
-    """家庭记账 REST API 客户端"""
+    """咕咕记账 REST API 客户端"""
 
     def __init__(self):
         self.base_url = config.server_url.rstrip("/")
@@ -185,7 +185,7 @@ from .config import config
 
 mcp = FastMCP(
     "home-accountant",
-    description="家庭记账系统 MCP Server — 支持智能记账、账目查询、报表分析、余额同步",
+    description="咕咕记账系统 MCP Server — 支持智能记账、账目查询、报表分析、余额同步",
 )
 
 # 注册所有 Tools

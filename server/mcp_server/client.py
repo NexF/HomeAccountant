@@ -3,7 +3,7 @@ from .config import config
 
 
 class HAClient:
-    """家庭记账 REST API 客户端"""
+    """咕咕记账 REST API 客户端"""
 
     def __init__(self):
         self._base_url: str | None = None

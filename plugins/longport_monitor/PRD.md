@@ -2,7 +2,7 @@
 
 ## 1. 背景与目标
 
-家庭记账系统已有 `eastmoney_monitor` 插件通过网页爬虫同步东方财富证券资产。现需要新增 `longport_monitor` 插件，通过长桥 OpenAPI 查询港美股账户资产，提交余额快照到 HomeAccountant，实现港美股账户的自动对账。
+咕咕记账系统已有 `eastmoney_monitor` 插件通过网页爬虫同步东方财富证券资产。现需要新增 `longport_monitor` 插件，通过长桥 OpenAPI 查询港美股账户资产，提交余额快照到 HomeAccountant，实现港美股账户的自动对账。
 
 长桥（LongPort）是港美股互联网券商，提供官方 OpenAPI + Python SDK，**无需爬虫、无需验证码**，通过 Token 认证即可稳定获取账户数据。
 

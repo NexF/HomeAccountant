@@ -51,7 +51,7 @@ export default function Sidebar() {
       {/* Logo */}
       <View style={styles.logoArea}>
         <FontAwesome name="calculator" size={24} color={Colors.primary} />
-        <Text style={[styles.logoText, { color: colors.text }]}>家庭记账</Text>
+        <Text style={[styles.logoText, { color: colors.text }]}>咕咕记账</Text>
       </View>
 
       {/* 账本切换器 */}

@@ -31,7 +31,7 @@ export default function AboutPane() {
           <FontAwesome name="home" size={32} color="#FFFFFF" />
         </View>
         <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
-          家庭记账
+          咕咕记账
         </Text>
         <Text style={{ fontSize: 13, color: colors.textSecondary }}>
           v{APP_VERSION}

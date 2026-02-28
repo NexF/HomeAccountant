@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="家庭记账后端 API - 基于复式记账法的家庭财务管理",
+    description="咕咕记账后端 API - 基于复式记账法的家庭财务管理",
     lifespan=lifespan,
 )
 

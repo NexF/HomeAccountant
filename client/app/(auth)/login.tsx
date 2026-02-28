@@ -53,7 +53,7 @@ export default function LoginScreen() {
           <View style={styles.logoCircle}>
             <FontAwesome name="calculator" size={32} color="#FFFFFF" />
           </View>
-          <Text style={styles.title}>家庭记账</Text>
+          <Text style={styles.title}>咕咕记账</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>登录你的账户</Text>
         </View>
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, Modal, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, Modal, ScrollView, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useProfileNavStore } from '@/stores/profileNavStore';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
-import { MenuItem, EditProfilePane, SettingsPane, AboutPane, styles } from '@/features/profile';
+import { MenuItem, EditProfilePane, SettingsPane, AboutPane, MyAccountsPane, styles } from '@/features/profile';
 import type { DetailPane } from '@/features/profile';
 import { AccountsPane } from '@/features/account';
 import { AssetsPane } from '@/features/asset';
@@ -22,6 +22,12 @@ import { MCPPane } from '@/features/mcp';
 import { BookSettingsPane } from '@/features/book';
 import { DataImportPane } from '@/features/import';
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const ADVANCED_PANES: DetailPane[] = ['accounts', 'api-keys', 'plugins', 'mcp'];
+
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
@@ -31,6 +37,7 @@ export default function ProfileScreen() {
 
   const [activeDetail, setActiveDetail] = useState<DetailPane>('none');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const focusedRef = useRef(false);
 
   // 追踪 tab 聚焦/失焦状态，聚焦时处理 pendingPane 或重置
@@ -43,8 +50,12 @@ export default function ProfileScreen() {
         if (pane) {
           useProfileNavStore.getState().consume();
           setActiveDetail(pane as DetailPane);
+          if (ADVANCED_PANES.includes(pane as DetailPane)) {
+            setAdvancedExpanded(true);
+          }
         } else {
           setActiveDetail('none');
+          setAdvancedExpanded(false);
         }
       }
 
@@ -63,6 +74,9 @@ export default function ProfileScreen() {
         const pane = useProfileNavStore.getState().consume();
         if (pane) {
           setActiveDetail(pane as DetailPane);
+          if (ADVANCED_PANES.includes(pane as DetailPane)) {
+            setAdvancedExpanded(true);
+          }
         }
       }
     });
@@ -108,30 +122,59 @@ export default function ProfileScreen() {
           onPress={() => handleMenuPress('book-settings', '/settings/book')}
         />
         <MenuItem
-          icon="list-alt"
-          label="科目管理"
-          onPress={() => handleMenuPress('accounts', '/accounts')}
+          icon="dollar"
+          label="我的账户"
+          onPress={() => handleMenuPress('my-accounts', '/my-accounts')}
         />
-        <MenuItem
-          icon="key"
-          label="API Key 管理"
-          onPress={() => handleMenuPress('api-keys', '/settings/api-keys')}
-        />
-        <MenuItem
-          icon="puzzle-piece"
-          label="插件管理"
-          onPress={() => handleMenuPress('plugins', '/settings/plugins')}
-        />
-        <MenuItem
-          icon="microchip"
-          label="MCP 服务"
-          onPress={() => handleMenuPress('mcp', '/settings/mcp')}
-        />
-        <MenuItem icon="bank" label="外部账户" hint="即将推出" />
         <MenuItem icon="building" label="固定资产" onPress={() => handleMenuPress('assets', '/assets')} />
         <MenuItem icon="credit-card" label="贷款管理" onPress={() => handleMenuPress('loans', '/loans')} />
         <MenuItem icon="pie-chart" label="预算设置" onPress={() => handleMenuPress('budget', '/settings/budget')} />
         <MenuItem icon="download" label="数据导入/导出" onPress={() => handleMenuPress('data-import', '/settings/data-import')} />
+        <MenuItem icon="bank" label="外部账户" hint="即将推出" />
+
+        <Pressable
+          style={styles.menuItem}
+          onPress={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setAdvancedExpanded(!advancedExpanded);
+          }}
+        >
+          <FontAwesome name="cogs" size={18} color={Colors.neutral} style={styles.menuIcon} />
+          <Text style={styles.menuLabel}>高级</Text>
+          <FontAwesome
+            name={advancedExpanded ? 'caret-down' : 'caret-right'}
+            size={14}
+            color={colors.textSecondary}
+          />
+        </Pressable>
+        {advancedExpanded && (
+          <>
+            <MenuItem
+              icon="list-alt"
+              label="科目管理"
+              indent
+              onPress={() => handleMenuPress('accounts', '/accounts')}
+            />
+            <MenuItem
+              icon="key"
+              label="API Key 管理"
+              indent
+              onPress={() => handleMenuPress('api-keys', '/settings/api-keys')}
+            />
+            <MenuItem
+              icon="puzzle-piece"
+              label="插件管理"
+              indent
+              onPress={() => handleMenuPress('plugins', '/settings/plugins')}
+            />
+            <MenuItem
+              icon="microchip"
+              label="MCP 服务"
+              indent
+              onPress={() => handleMenuPress('mcp', '/settings/mcp')}
+            />
+          </>
+        )}
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.card }]}>
@@ -218,6 +261,7 @@ export default function ProfileScreen() {
             />
           )}
           {activeDetail === 'data-import' && <DataImportPane />}
+          {activeDetail === 'my-accounts' && <MyAccountsPane />}
           {activeDetail === 'none' && (
             <View style={styles.detailEmpty}>
               <FontAwesome name="user-circle" size={48} color={colors.textSecondary} />

@@ -277,7 +277,7 @@ export default function ReportsScreen() {
         >
           {tab === 'balance' && balanceSheet && (
             <>
-              <BalanceSheetTable data={balanceSheet} />
+              <BalanceSheetTable data={balanceSheet} onRefresh={fetchData} editable={bsDate === today()} />
               <Text style={[styles.footerText, { color: colors.textSecondary }]}>
                 截至 {balanceSheet.as_of_date}
               </Text>

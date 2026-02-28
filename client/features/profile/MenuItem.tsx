@@ -11,15 +11,16 @@ type MenuItemProps = {
   label: string;
   hint?: string;
   color?: string;
+  indent?: boolean;
   onPress?: () => void;
 };
 
-export default function MenuItem({ icon, label, hint, color, onPress }: MenuItemProps) {
+export default function MenuItem({ icon, label, hint, color, indent, onPress }: MenuItemProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
   return (
-    <Pressable style={styles.menuItem} onPress={onPress}>
+    <Pressable style={[styles.menuItem, indent && { paddingLeft: 32 }]} onPress={onPress}>
       <FontAwesome name={icon} size={18} color={color ?? Colors.primary} style={styles.menuIcon} />
       <Text style={styles.menuLabel}>{label}</Text>
       {hint ? (

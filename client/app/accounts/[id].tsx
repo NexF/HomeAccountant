@@ -211,10 +211,6 @@ export default function AccountDetailScreen() {
         {/* Info Card */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>编码</Text>
-            <Text style={styles.infoValue}>{account.code}</Text>
-          </View>
-          <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>类型</Text>
             <Text style={styles.infoValue}>
               {ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type}
@@ -370,9 +366,6 @@ export default function AccountDetailScreen() {
                   style={{ width: 24 }}
                 />
                 <Text style={styles.childName}>{child.name}</Text>
-                <Text style={[styles.childCode, { color: colors.textSecondary }]}>
-                  {child.code}
-                </Text>
                 <FontAwesome
                   name="chevron-right"
                   size={10}
@@ -417,7 +410,7 @@ export default function AccountDetailScreen() {
               <Text style={[modalStyles.label, { color: colors.textSecondary }]}>父科目</Text>
               <View style={[modalStyles.readonlyBadge, { backgroundColor: Colors.primary + '15' }]}>
                 <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '500' }}>
-                  {account.name}（{account.code}）
+                  {account.name}
                 </Text>
               </View>
             </View>

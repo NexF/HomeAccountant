@@ -85,7 +85,6 @@ function AccountRow({
         </View>
         <View style={styles.acctRowContent}>
           <Text style={styles.acctRowName}>{node.name}</Text>
-          <Text style={[styles.acctRowCode, { color: colors.textSecondary }]}>{node.code}</Text>
         </View>
         <View
           style={[
@@ -318,7 +317,6 @@ function AccountDetailInline({
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <View style={[styles.formCard, { backgroundColor: colors.card, marginBottom: 16 }]}>
           {([
-            ['编码', account.code],
             ['类型', ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type],
             ['余额方向', account.balance_direction === 'debit' ? '借方' : '贷方'],
             ['来源', account.is_system ? '系统预置' : '用户自定义'],
@@ -435,7 +433,6 @@ function AccountDetailInline({
               >
                 <FontAwesome name={(child.icon as any) || 'circle-o'} size={14} color={Colors.primary} style={{ width: 24 }} />
                 <Text style={{ flex: 1, fontSize: 14, fontWeight: '500', marginLeft: 8 }}>{child.name}</Text>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginRight: 4 }}>{child.code}</Text>
                 <FontAwesome name="chevron-right" size={10} color={colors.textSecondary} style={{ opacity: 0.4 }} />
               </Pressable>
             ))
@@ -480,7 +477,7 @@ function AccountDetailInline({
               <Text style={{ fontSize: 12, color: colors.textSecondary }}>父科目</Text>
               <View style={{ backgroundColor: Colors.primary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
                 <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '500' }}>
-                  {account.name}（{account.code}）
+                  {account.name}
                 </Text>
               </View>
             </View>
@@ -762,7 +759,7 @@ export default function AccountsPane() {
                 <Text style={{ fontSize: 12, color: colors.textSecondary }}>父科目</Text>
                 <View style={{ backgroundColor: Colors.primary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
                   <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '500' }}>
-                    {createParent.name}（{createParent.code}）
+                    {createParent.name}
                   </Text>
                 </View>
               </View>

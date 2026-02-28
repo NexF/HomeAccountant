@@ -94,7 +94,6 @@ function AccountRow({
         </View>
         <View style={styles.rowContent}>
           <Text style={styles.rowName}>{node.name}</Text>
-          <Text style={[styles.rowCode, { color: colors.textSecondary }]}>{node.code}</Text>
         </View>
         <View
           style={[
@@ -336,7 +335,7 @@ export default function AccountsScreen() {
                 <Text style={[modalStyles.label, { color: colors.textSecondary }]}>父科目</Text>
                 <View style={[modalStyles.readonlyBadge, { backgroundColor: Colors.primary + '15' }]}>
                   <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '500' }}>
-                    {createParent.name}（{createParent.code}）
+                    {createParent.name}
                   </Text>
                 </View>
               </View>

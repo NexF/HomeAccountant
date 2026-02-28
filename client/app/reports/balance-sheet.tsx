@@ -98,7 +98,7 @@ export default function BalanceSheetScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
           }
         >
-          <BalanceSheetTable data={data} />
+          <BalanceSheetTable data={data} onRefresh={fetchData} editable={date === today()} />
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>
             截至 {data.as_of_date}
           </Text>

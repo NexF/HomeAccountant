@@ -175,26 +175,26 @@ case "$CMD" in
     start)
         echo "启动插件..."
         for p in $(get_targets "$TARGET"); do
-            start_plugin "$p"
+            start_plugin "$p" || true
         done
         ;;
     stop)
         echo "停止插件..."
         for p in $(get_targets "$TARGET"); do
-            stop_plugin "$p"
+            stop_plugin "$p" || true
         done
         ;;
     restart)
         echo "重启插件..."
         for p in $(get_targets "$TARGET"); do
-            stop_plugin "$p"
-            start_plugin "$p"
+            stop_plugin "$p" || true
+            start_plugin "$p" || true
         done
         ;;
     status)
         echo "插件状态:"
         for p in $(get_targets "$TARGET"); do
-            show_status "$p"
+            show_status "$p" || true
         done
         ;;
     logs)

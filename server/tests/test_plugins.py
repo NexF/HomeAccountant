@@ -994,3 +994,471 @@ class TestPluginListConfigStatus:
         resp = await client.get("/plugins", headers=auth_headers)
         data = resp.json()
         assert data[0]["is_configured"] is True
+
+
+# ══════════════════════════════════════════════════════════════
+# v0.4.6  多账本插件配置测试
+# ══════════════════════════════════════════════════════════════
+
+
+MULTI_BOOK_CONFIG_SCHEMA = {
+    "fields": [
+        {"key": "target_book", "type": "book_select", "label": "同步账本", "required": True, "multi": True},
+        {"key": "securities_account_id", "type": "account_select", "label": "证券科目", "required": True, "depends_on": "target_book"},
+        {"key": "mode", "type": "select", "label": "同步模式", "required": False,
+         "options": [{"label": "增量", "value": "incremental"}, {"label": "全量", "value": "full"}],
+         "default": "incremental"},
+        {"key": "note", "type": "string", "label": "备注", "required": False},
+    ]
+}
+
+
+@pytest_asyncio.fixture
+async def multi_book_plugin_data():
+    """带 multi book_select 的插件注册请求体"""
+    return {
+        "name": "longport-multi-book",
+        "type": "entry",
+        "description": "多账本证券同步",
+        "config_schema": MULTI_BOOK_CONFIG_SCHEMA,
+    }
+
+
+@pytest_asyncio.fixture
+async def registered_multi_book_plugin(client: AsyncClient, api_key_and_headers, multi_book_plugin_data):
+    """注册一个多账本插件"""
+    _, api_headers = api_key_and_headers
+    resp = await client.post("/plugins", json=multi_book_plugin_data, headers=api_headers)
+    assert resp.status_code == 201
+    return resp.json(), api_headers
+
+
+@pytest_asyncio.fixture
+async def second_book(test_user: User) -> "Book":
+    """创建第二个测试账本"""
+    from app.models.book import Book, BookMember
+    from app.utils.seed import seed_accounts_for_book
+    async with TestSessionLocal() as db:
+        book = Book(
+            id=str(uuid.uuid4()),
+            name="第二账本",
+            type="personal",
+            owner_id=test_user.id,
+        )
+        db.add(book)
+        await db.flush()
+        member = BookMember(book_id=book.id, user_id=test_user.id, role="admin")
+        db.add(member)
+        await seed_accounts_for_book(db, book.id)
+        await db.commit()
+        await db.refresh(book)
+        return book
+
+
+async def _get_account_by_code(book_id: str, code: str):
+    """辅助函数：获取指定账本下的科目"""
+    from sqlalchemy import select as sa_select
+    from app.models.account import Account
+    async with TestSessionLocal() as db:
+        result = await db.execute(
+            sa_select(Account).where(Account.book_id == book_id, Account.code == code)
+        )
+        return result.scalar_one()
+
+
+# ──────────── 多账本 book_select 校验 ────────────
+
+
+class TestMultiBookSelect:
+
+    @pytest.mark.asyncio
+    async def test_multi_book_select_normal(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book, second_book
+    ):
+        """多账本 book_select — 正常数组"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        acct1 = await _get_account_by_code(test_book.id, "1002-01")
+        acct2 = await _get_account_by_code(second_book.id, "1002-01")
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id, second_book.id],
+                "securities_account_id": {
+                    test_book.id: acct1.id,
+                    second_book.id: acct2.id,
+                },
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["config"]["target_book"] == [test_book.id, second_book.id]
+        assert data["config"]["securities_account_id"][test_book.id] == acct1.id
+        assert data["config"]["securities_account_id"][second_book.id] == acct2.id
+        assert data["is_configured"] is True
+        assert data["config"]["mode"] == "incremental"  # default
+
+    @pytest.mark.asyncio
+    async def test_multi_book_select_not_array(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book
+    ):
+        """多账本 book_select — 非数组类型 → 422"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": test_book.id,  # 字符串而非数组
+                "securities_account_id": "some-id",
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        error_keys = [e["key"] for e in resp.json()["detail"]["errors"]]
+        assert "target_book" in error_keys
+
+    @pytest.mark.asyncio
+    async def test_multi_book_select_empty_array_required(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin
+    ):
+        """多账本 book_select — 空数组（required 时）→ 422"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [],
+                "securities_account_id": {},
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        errors = resp.json()["detail"]["errors"]
+        assert any(e["key"] == "target_book" and "至少选择" in e["error"] for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_multi_book_select_duplicate_book_ids(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book
+    ):
+        """多账本 book_select — 重复 book_id → 422"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id, test_book.id],
+                "securities_account_id": {test_book.id: "some-id"},
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        errors = resp.json()["detail"]["errors"]
+        assert any(e["key"] == "target_book" and "不可重复" in e["error"] for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_multi_book_select_nonexistent_book(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book
+    ):
+        """多账本 book_select — 不存在的 book_id → 422"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+        fake_book_id = str(uuid.uuid4())
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id, fake_book_id],
+                "securities_account_id": {test_book.id: "some-id", fake_book_id: "some-id"},
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        errors = resp.json()["detail"]["errors"]
+        assert any("不存在" in e["error"] for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_multi_book_select_no_access(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book
+    ):
+        """多账本 book_select — 无权访问其中一个 → 422"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        # 创建另一个用户的账本（当前用户无权访问）
+        from app.models.book import Book
+        async with TestSessionLocal() as db:
+            other_user = User(
+                id=str(uuid.uuid4()),
+                email="other_multi@example.com",
+                password_hash=hash_password("password123"),
+                nickname="其他用户",
+            )
+            db.add(other_user)
+            await db.flush()
+            other_book = Book(
+                id=str(uuid.uuid4()),
+                name="他人账本",
+                type="personal",
+                owner_id=other_user.id,
+            )
+            db.add(other_book)
+            await db.commit()
+            await db.refresh(other_book)
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id, other_book.id],
+                "securities_account_id": {test_book.id: "some-id", other_book.id: "some-id"},
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        errors = resp.json()["detail"]["errors"]
+        assert any("无权访问" in e["error"] for e in errors)
+
+
+# ──────────── 多账本 account_select 校验 ────────────
+
+
+class TestMultiAccountSelect:
+
+    @pytest.mark.asyncio
+    async def test_multi_account_select_not_object(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book
+    ):
+        """多账本 account_select — 非对象类型 → 422"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id],
+                "securities_account_id": "not-an-object",
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        errors = resp.json()["detail"]["errors"]
+        assert any(e["key"] == "securities_account_id" and "必须为对象" in e["error"] for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_multi_account_select_missing_required(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book, second_book
+    ):
+        """多账本 account_select — 必填时某 book 未配置科目 → 422"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        acct1 = await _get_account_by_code(test_book.id, "1002-01")
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id, second_book.id],
+                "securities_account_id": {
+                    test_book.id: acct1.id,
+                    # second_book 缺少科目
+                },
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        errors = resp.json()["detail"]["errors"]
+        assert any(e["key"] == "securities_account_id" and "未配置" in e["error"] for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_multi_account_select_wrong_book(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book, second_book
+    ):
+        """多账本 account_select — 科目不属于对应账本 → 422"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        # 用 test_book 的科目填在 second_book 的位置
+        acct1 = await _get_account_by_code(test_book.id, "1002-01")
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id, second_book.id],
+                "securities_account_id": {
+                    test_book.id: acct1.id,
+                    second_book.id: acct1.id,  # test_book 的科目不属于 second_book
+                },
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        errors = resp.json()["detail"]["errors"]
+        assert any("不存在或不属于" in e["error"] for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_multi_account_select_extra_keys_filtered(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book
+    ):
+        """多账本 account_select — 多余 key 被过滤"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        acct1 = await _get_account_by_code(test_book.id, "1002-01")
+        fake_book_id = str(uuid.uuid4())
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id],
+                "securities_account_id": {
+                    test_book.id: acct1.id,
+                    fake_book_id: "some-random-id",  # 多余 key
+                },
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        config = resp.json()["config"]
+        # 多余 key 应该被过滤
+        assert fake_book_id not in config["securities_account_id"]
+        assert config["securities_account_id"][test_book.id] == acct1.id
+
+
+# ──────────── is_configured / book_count 计算测试 ────────────
+
+
+class TestMultiBookConfigStatus:
+
+    @pytest.mark.asyncio
+    async def test_is_configured_multi_all_filled(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book, second_book
+    ):
+        """is_configured — 多账本全部配置完成 → true"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        acct1 = await _get_account_by_code(test_book.id, "1002-01")
+        acct2 = await _get_account_by_code(second_book.id, "1002-01")
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id, second_book.id],
+                "securities_account_id": {
+                    test_book.id: acct1.id,
+                    second_book.id: acct2.id,
+                },
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["is_configured"] is True
+
+    @pytest.mark.asyncio
+    async def test_is_configured_multi_partial(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book, second_book
+    ):
+        """is_configured — 多账本部分配置（只配了一个 book 的 account）→ false
+
+        注意：由于 required=True，后端会在校验时拒绝不完整配置（422），
+        所以 is_configured=false 的场景在详情接口体现——注册后未配置的状态。
+        """
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        # 未保存任何 config → is_configured=false
+        resp = await client.get(f"/plugins/{plugin_id}", headers=auth_headers)
+        assert resp.status_code == 200
+        assert resp.json()["is_configured"] is False
+
+    @pytest.mark.asyncio
+    async def test_book_count_multi(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin, test_book, second_book
+    ):
+        """book_count — 多账本选 2 个 → book_count=2"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        acct1 = await _get_account_by_code(test_book.id, "1002-01")
+        acct2 = await _get_account_by_code(second_book.id, "1002-01")
+
+        await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": [test_book.id, second_book.id],
+                "securities_account_id": {
+                    test_book.id: acct1.id,
+                    second_book.id: acct2.id,
+                },
+            }},
+            headers=auth_headers,
+        )
+
+        # 详情接口
+        resp = await client.get(f"/plugins/{plugin_id}", headers=auth_headers)
+        assert resp.json()["book_count"] == 2
+
+        # 列表接口
+        resp = await client.get("/plugins", headers=auth_headers)
+        plugin_in_list = [p for p in resp.json() if p["id"] == plugin_id][0]
+        assert plugin_in_list["book_count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_book_count_single_mode(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """book_count — 单账本模式 → book_count=0"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        resp = await client.get(f"/plugins/{plugin_id}", headers=auth_headers)
+        assert resp.json()["book_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_book_count_no_config(
+        self, client: AsyncClient, auth_headers, registered_multi_book_plugin
+    ):
+        """book_count — 未配置 → book_count=0"""
+        plugin_data, _ = registered_multi_book_plugin
+        plugin_id = plugin_data["id"]
+
+        resp = await client.get(f"/plugins/{plugin_id}", headers=auth_headers)
+        assert resp.json()["book_count"] == 0
+
+
+# ──────────── 单账本模式回归测试 ────────────
+
+
+class TestSingleBookModeRegression:
+
+    @pytest.mark.asyncio
+    async def test_single_book_select_unchanged(
+        self, client: AsyncClient, auth_headers, registered_plugin_with_schema, test_book
+    ):
+        """单账本模式 — 行为完全不变"""
+        plugin_data, _ = registered_plugin_with_schema
+        plugin_id = plugin_data["id"]
+
+        expense_acct = await _get_account_by_code(test_book.id, "5001")
+        income_acct = await _get_account_by_code(test_book.id, "4005")
+
+        resp = await client.put(
+            f"/plugins/{plugin_id}/config",
+            json={"config": {
+                "target_book": test_book.id,
+                "default_expense": expense_acct.id,
+                "default_income": income_acct.id,
+            }},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["config"]["target_book"] == test_book.id
+        assert data["config"]["default_expense"] == expense_acct.id
+        assert data["is_configured"] is True
+        assert data["book_count"] == 0  # 单账本模式不计 book_count

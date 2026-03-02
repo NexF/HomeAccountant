@@ -161,23 +161,61 @@ async def update_plugin_config(
         if field_type == "book_select":
             # 校验用户有权访问该账本
             from app.models.book import Book, BookMember
-            book_result = await db.execute(
-                select(Book).where(Book.id == value)
-            )
-            book = book_result.scalar_one_or_none()
-            if not book:
-                errors.append({"key": key, "error": f"账本 {value} 不存在"})
-                continue
-            if book.owner_id != user_id:
-                member_result = await db.execute(
-                    select(BookMember).where(
-                        BookMember.book_id == value,
-                        BookMember.user_id == user_id,
-                    )
-                )
-                if not member_result.scalar_one_or_none():
-                    errors.append({"key": key, "error": f"无权访问账本 {value}"})
+            is_multi = field_def.get("multi", False)
+
+            if is_multi:
+                # ── 多账本模式 ──
+                if not isinstance(value, list):
+                    errors.append({"key": key, "error": "多账本模式下值必须为数组"})
                     continue
+                if required and len(value) == 0:
+                    errors.append({"key": key, "error": "至少选择一个账本"})
+                    continue
+                if len(value) != len(set(value)):
+                    errors.append({"key": key, "error": "账本不可重复"})
+                    continue
+                # 逐一校验每个 book_id
+                has_error = False
+                for book_id in value:
+                    book_result = await db.execute(
+                        select(Book).where(Book.id == book_id)
+                    )
+                    book = book_result.scalar_one_or_none()
+                    if not book:
+                        errors.append({"key": key, "error": f"账本 {book_id} 不存在"})
+                        has_error = True
+                        continue
+                    if book.owner_id != user_id:
+                        member_result = await db.execute(
+                            select(BookMember).where(
+                                BookMember.book_id == book_id,
+                                BookMember.user_id == user_id,
+                            )
+                        )
+                        if not member_result.scalar_one_or_none():
+                            errors.append({"key": key, "error": f"无权访问账本 {book_id}"})
+                            has_error = True
+                if has_error:
+                    continue
+            else:
+                # ── 单账本模式（不变） ──
+                book_result = await db.execute(
+                    select(Book).where(Book.id == value)
+                )
+                book = book_result.scalar_one_or_none()
+                if not book:
+                    errors.append({"key": key, "error": f"账本 {value} 不存在"})
+                    continue
+                if book.owner_id != user_id:
+                    member_result = await db.execute(
+                        select(BookMember).where(
+                            BookMember.book_id == value,
+                            BookMember.user_id == user_id,
+                        )
+                    )
+                    if not member_result.scalar_one_or_none():
+                        errors.append({"key": key, "error": f"无权访问账本 {value}"})
+                        continue
         if field_type == "account_select":
             # 从 depends_on 指向的 book_select 字段获取 book_id
             depends_on = field_def.get("depends_on")
@@ -188,20 +226,61 @@ async def update_plugin_config(
             if dep_field["type"] != "book_select":
                 errors.append({"key": key, "error": f"depends_on 指向的字段 '{depends_on}' 不是 book_select 类型"})
                 continue
-            ref_book_id = config.get(depends_on)
-            if not ref_book_id:
-                errors.append({"key": key, "error": f"请先选择「{dep_field.get('label', depends_on)}」"})
-                continue
+
+            is_multi = dep_field.get("multi", False)
             from app.models.account import Account
-            result = await db.execute(
-                select(Account).where(
-                    Account.id == value,
-                    Account.book_id == ref_book_id,
+
+            if is_multi:
+                # ── 多账本模式：value 为 {book_id: account_id} 映射 ──
+                if not isinstance(value, dict):
+                    errors.append({"key": key, "error": "多账本模式下科目配置必须为对象"})
+                    continue
+                book_ids = config.get(depends_on, [])
+                if not isinstance(book_ids, list):
+                    book_ids = []
+                # 必填时，每个已选 book 都要有对应科目
+                if required:
+                    missing = [bid for bid in book_ids if value.get(bid) in (None, "")]
+                    if missing:
+                        errors.append({"key": key, "error": f"以下账本的科目未配置: {missing}"})
+                        continue
+                # 逐一校验每个 account_id 归属
+                has_error = False
+                for bid, account_id in value.items():
+                    if bid not in book_ids:
+                        continue  # 忽略多余的 key
+                    if account_id in (None, ""):
+                        continue  # 非必填时允许空
+                    result = await db.execute(
+                        select(Account).where(
+                            Account.id == account_id,
+                            Account.book_id == bid,
+                        )
+                    )
+                    if not result.scalar_one_or_none():
+                        errors.append({"key": key, "error": f"科目 {account_id} 不存在或不属于账本 {bid}"})
+                        has_error = True
+                # 过滤 value：只保留 book_ids 中存在的 key
+                filtered_value = {bid: value[bid] for bid in book_ids if bid in value and value[bid] not in (None, "")}
+                filtered_config[key] = filtered_value
+                if has_error:
+                    continue
+                continue  # 已在分支内赋值 filtered_config
+            else:
+                # ── 单账本模式（不变） ──
+                ref_book_id = config.get(depends_on)
+                if not ref_book_id:
+                    errors.append({"key": key, "error": f"请先选择「{dep_field.get('label', depends_on)}」"})
+                    continue
+                result = await db.execute(
+                    select(Account).where(
+                        Account.id == value,
+                        Account.book_id == ref_book_id,
+                    )
                 )
-            )
-            if not result.scalar_one_or_none():
-                errors.append({"key": key, "error": f"科目 {value} 不存在或不属于所选账本"})
-                continue
+                if not result.scalar_one_or_none():
+                    errors.append({"key": key, "error": f"科目 {value} 不存在或不属于所选账本"})
+                    continue
 
         filtered_config[key] = value
 

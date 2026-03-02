@@ -149,17 +149,19 @@ export default function PluginsPane() {
             return (
               <View
                 key={plugin.id}
-                style={[styles.formCard, { backgroundColor: colors.card, padding: 16, marginBottom: 12 }]}
+                style={[styles.formCard, { backgroundColor: colors.card, padding: 16, marginBottom: 12, gap: 8 }]}
               >
                 {/* Header */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <FontAwesome name="puzzle-piece" size={16} color={Colors.primary} />
                   <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: colors.text }} numberOfLines={1}>{plugin.display_name || plugin.name}</Text>
                   {plugin.has_config && (
                     <View style={[ps.configBadge, { backgroundColor: plugin.is_configured ? '#10B98115' : '#F59E0B15' }]}>
                       <View style={[ps.configDot, { backgroundColor: plugin.is_configured ? '#10B981' : '#F59E0B' }]} />
                       <Text style={{ fontSize: 11, fontWeight: '600', color: plugin.is_configured ? '#10B981' : '#F59E0B' }}>
-                        {plugin.is_configured ? '已配置' : '待配置'}
+                        {plugin.is_configured
+                          ? (plugin.book_count > 0 ? `已配置 · ${plugin.book_count} 个账本` : '已配置')
+                          : '待配置'}
                       </Text>
                     </View>
                   )}
@@ -173,13 +175,13 @@ export default function PluginsPane() {
 
                 {/* Description */}
                 {plugin.description && (
-                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 4 }} numberOfLines={2}>
+                  <Text style={{ fontSize: 13, color: colors.textSecondary }} numberOfLines={2}>
                     {plugin.description}
                   </Text>
                 )}
 
                 {/* Info */}
-                <View style={{ gap: 4, marginBottom: 8 }}>
+                <View style={{ gap: 4 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: colors.textSecondary }}>类型：{PLUGIN_TYPE_LABEL[plugin.type] ?? plugin.type}</Text>
                     <Text style={{ fontSize: 12, color: colors.textSecondary }}>同步 {plugin.sync_count} 次</Text>
@@ -192,7 +194,7 @@ export default function PluginsPane() {
 
                 {/* Error Message */}
                 {plugin.last_sync_status === 'failed' && plugin.last_error_message && (
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 10, borderRadius: 8, backgroundColor: '#FEF2F2', marginBottom: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 10, borderRadius: 8, backgroundColor: '#FEF2F2' }}>
                     <FontAwesome name="exclamation-circle" size={12} color="#EF4444" />
                     <Text style={{ flex: 1, fontSize: 12, color: '#991B1B', marginLeft: 6 }} numberOfLines={3}>
                       {plugin.last_error_message}

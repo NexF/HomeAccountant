@@ -54,3 +54,4 @@ plugins/*/wechat_db_keys.json
 nohup.out
 plugins/.pids/
 plugins/.logs/
+plugins/.venv/

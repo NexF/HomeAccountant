@@ -9,6 +9,7 @@ export type ConfigField = {
   description?: string;
   options?: { label: string; value: string }[];
   depends_on?: string;
+  multi?: boolean;
 };
 
 export type ConfigSchema = {
@@ -32,6 +33,7 @@ export type PluginResponse = {
   config: Record<string, any> | null;
   has_config: boolean;
   is_configured: boolean;
+  book_count: number;
 };
 
 export const pluginService = {

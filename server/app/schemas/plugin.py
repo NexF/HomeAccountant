@@ -25,6 +25,54 @@ class PluginCreateRequest(BaseModel):
     )
 
 
+# ─── 公共函数：计算 is_configured（支持多账本模式） ─────────────────────────
+
+def _compute_is_configured(parsed_schema: dict | None, parsed_config: dict | None) -> bool:
+    """计算插件是否已完成配置（支持多账本模式）"""
+    if not parsed_schema or not parsed_config:
+        return False
+    fields = parsed_schema.get("fields", [])
+    field_map = {f["key"]: f for f in fields}
+    required_keys = [f["key"] for f in fields if f.get("required")]
+
+    def _is_filled(key: str) -> bool:
+        val = parsed_config.get(key)
+        if val is None or val == "":
+            return False
+        f_def = field_map.get(key, {})
+        f_type = f_def.get("type")
+        # 多账本 book_select：值为 list，不能为空
+        if f_type == "book_select" and f_def.get("multi"):
+            return isinstance(val, list) and len(val) > 0
+        # 多账本 account_select：值为 dict，每个已选 book 都要有值
+        if f_type == "account_select":
+            dep_key = f_def.get("depends_on")
+            dep_field = field_map.get(dep_key, {})
+            if dep_field.get("type") == "book_select" and dep_field.get("multi"):
+                if not isinstance(val, dict):
+                    return False
+                book_ids = parsed_config.get(dep_key, [])
+                if not isinstance(book_ids, list):
+                    return False
+                return all(val.get(bid) not in (None, "") for bid in book_ids)
+        return True
+
+    return all(_is_filled(k) for k in required_keys)
+
+
+def _compute_book_count(parsed_schema: dict | None, parsed_config: dict | None) -> int:
+    """计算多账本模式下已配置的账本数量"""
+    if not isinstance(parsed_schema, dict) or not isinstance(parsed_config, dict):
+        return 0
+    for f in parsed_schema.get("fields", []):
+        if f.get("type") == "book_select" and f.get("multi"):
+            val = parsed_config.get(f["key"])
+            if isinstance(val, list):
+                return len(val)
+            break
+    return 0
+
+
 # ─── 详情响应（含完整 config_schema / config） ─────────────────────────
 
 class PluginResponse(BaseModel):
@@ -46,6 +94,8 @@ class PluginResponse(BaseModel):
     config: dict[str, Any] | None = None
     has_config: bool = False
     is_configured: bool = False
+    # v0.4.6 新增
+    book_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -83,17 +133,8 @@ class PluginResponse(BaseModel):
         has_config = parsed_schema is not None and bool(
             parsed_schema.get("fields")
         )
-        is_configured = False
-        if has_config and parsed_config:
-            required_keys = [
-                f["key"]
-                for f in parsed_schema.get("fields", [])
-                if f.get("required")
-            ]
-            is_configured = all(
-                parsed_config.get(k) not in (None, "")
-                for k in required_keys
-            )
+        is_configured = _compute_is_configured(parsed_schema, parsed_config)
+        book_count = _compute_book_count(parsed_schema, parsed_config)
 
         if hasattr(data, "__dict__"):
             return {
@@ -109,12 +150,14 @@ class PluginResponse(BaseModel):
                 "config": parsed_config,
                 "has_config": has_config,
                 "is_configured": is_configured,
+                "book_count": book_count,
             }
         else:
             data["config_schema"] = parsed_schema
             data["config"] = parsed_config
             data["has_config"] = has_config
             data["is_configured"] = is_configured
+            data["book_count"] = book_count
             return data
 
 
@@ -133,6 +176,7 @@ class PluginListResponse(BaseModel):
     sync_count: int
     has_config: bool = False
     is_configured: bool = False
+    book_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -141,7 +185,7 @@ class PluginListResponse(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def compute_config_status(cls, data):
-        """从 ORM 对象计算 has_config / is_configured"""
+        """从 ORM 对象计算 has_config / is_configured / book_count"""
         if hasattr(data, "__dict__"):
             raw_schema = getattr(data, "config_schema", None)
             raw_config = getattr(data, "config", None)
@@ -155,17 +199,8 @@ class PluginListResponse(BaseModel):
             has_config = parsed_schema is not None and bool(
                 parsed_schema.get("fields") if isinstance(parsed_schema, dict) else False
             )
-            is_configured = False
-            if has_config and isinstance(parsed_config, dict):
-                required_keys = [
-                    f["key"]
-                    for f in parsed_schema.get("fields", [])
-                    if f.get("required")
-                ]
-                is_configured = all(
-                    parsed_config.get(k) not in (None, "")
-                    for k in required_keys
-                )
+            is_configured = _compute_is_configured(parsed_schema, parsed_config)
+            book_count = _compute_book_count(parsed_schema, parsed_config)
 
             return {
                 **{
@@ -178,6 +213,7 @@ class PluginListResponse(BaseModel):
                 },
                 "has_config": has_config,
                 "is_configured": is_configured,
+                "book_count": book_count,
             }
         return data
 

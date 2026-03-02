@@ -43,7 +43,8 @@ CONFIG_SCHEMA = {
             "label": "目标账本",
             "type": "book_select",
             "required": True,
-            "description": "余额快照关联的账本",
+            "multi": True,
+            "description": "余额快照关联的账本（支持多账本）",
         },
         {
             "key": "securities_account_id",
@@ -346,7 +347,7 @@ def _interruptible_sleep(seconds: int, check_running):
 
 
 def do_sync(client: HAClient, plugin_config: dict) -> bool:
-    """执行一次同步：查询长桥净资产 → 汇率折算 → 提交快照。返回是否成功。"""
+    """执行一次同步：查询长桥净资产 → 汇率折算 → 循环所有账本提交快照。返回是否成功。"""
     app_key = plugin_config["lp_app_key"]
     app_secret = plugin_config["lp_app_secret"]
     access_token = plugin_config["lp_access_token"]
@@ -366,25 +367,41 @@ def do_sync(client: HAClient, plugin_config: dict) -> bool:
     cny_total = calculate_cny_total(assets, rates)
     logger.info("CNY 总资产: %.2f", cny_total)
 
-    # 4. 提交余额快照
-    securities_account_id = plugin_config["securities_account_id"]
+    # 4. 提交余额快照（支持多账本循环）
     snapshot_date = datetime.now().strftime("%Y-%m-%d")
+    target_book = plugin_config["target_book"]
+    account_mapping = plugin_config["securities_account_id"]
 
-    try:
-        snap_result = client.submit_balance_snapshot(
-            securities_account_id, cny_total, snapshot_date
-        )
-        logger.info(
-            "余额快照提交成功: balance=%.2f, book_balance=%s, diff=%s, status=%s",
-            cny_total,
-            snap_result.get("book_balance"),
-            snap_result.get("difference"),
-            snap_result.get("status"),
-        )
-        return True
-    except Exception:
-        logger.exception("余额快照提交失败")
-        return False
+    # 兼容：多账本模式 target_book 为 list，account_mapping 为 dict
+    #        单账本模式 target_book 为 str，account_mapping 为 str
+    if isinstance(target_book, list):
+        book_ids = target_book
+    else:
+        book_ids = [target_book]
+        account_mapping = {target_book: account_mapping}
+
+    all_ok = True
+    for book_id in book_ids:
+        securities_account_id = account_mapping.get(book_id) if isinstance(account_mapping, dict) else account_mapping
+        if not securities_account_id:
+            logger.warning("账本 %s 缺少科目映射，跳过", book_id)
+            continue
+        try:
+            snap_result = client.submit_balance_snapshot(
+                securities_account_id, cny_total, snapshot_date
+            )
+            logger.info(
+                "余额快照提交成功 [book=%s]: balance=%.2f, book_balance=%s, diff=%s, status=%s",
+                book_id, cny_total,
+                snap_result.get("book_balance"),
+                snap_result.get("difference"),
+                snap_result.get("status"),
+            )
+        except Exception:
+            logger.exception("余额快照提交失败 [book=%s]", book_id)
+            all_ok = False
+
+    return all_ok
 
 
 # ============ 主流程 ============
@@ -408,7 +425,7 @@ def run_plugin(args):
         sys.exit(0)
 
     plugin_config = plugin_detail["config"]
-    logger.info("用户配置: securities_account_id=%s", plugin_config["securities_account_id"])
+    logger.info("用户配置: target_book=%s", plugin_config["target_book"])
 
     sync_time = plugin_config.get("sync_time", "16:30")
     config_refresh_interval = pcfg["config_refresh_seconds"]

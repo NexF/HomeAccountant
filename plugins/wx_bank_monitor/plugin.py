@@ -52,7 +52,8 @@ CONFIG_SCHEMA = {
             "label": "目标账本",
             "type": "book_select",
             "required": True,
-            "description": "选择要记账的目标账本",
+            "multi": True,
+            "description": "选择要记账的目标账本（支持多账本）",
         },
         {
             "key": "deposit_account_id",
@@ -286,7 +287,8 @@ def parse_amount(raw: str | None) -> float | None:
         return None
 
 
-def record_to_entry(record: dict, plugin_config: dict) -> dict | None:
+def record_to_entry(record: dict, book_id: str, deposit_account_id: str,
+                    default_expense_id: str, default_income_id: str) -> dict | None:
     """将 wx_bank_monitor 的 record 转换为 HomeAccountant 分录格式。"""
     direction = record.get("direction")
     if direction not in ("in", "out"):
@@ -313,15 +315,15 @@ def record_to_entry(record: dict, plugin_config: dict) -> dict | None:
     tx_type = fields.get("transaction_type", "")
     description = f"{bank} {tx_type}".strip() if tx_type else bank
 
-    external_id = f"bm-{record.get('gh_id', '')}-{record.get('msg_id', '')}"
+    external_id = f"bm-{record.get('gh_id', '')}-{record.get('msg_id', '')}-{book_id}"
 
     if direction == "out":
         return {
             "entry_type": "expense",
             "entry_date": entry_date,
             "amount": amount,
-            "category_account_id": plugin_config["default_expense_id"],
-            "payment_account_id": plugin_config["deposit_account_id"],
+            "category_account_id": default_expense_id,
+            "payment_account_id": deposit_account_id,
             "description": description,
             "external_id": external_id,
         }
@@ -330,8 +332,8 @@ def record_to_entry(record: dict, plugin_config: dict) -> dict | None:
             "entry_type": "income",
             "entry_date": entry_date,
             "amount": amount,
-            "category_account_id": plugin_config["default_income_id"],
-            "payment_account_id": plugin_config["deposit_account_id"],
+            "category_account_id": default_income_id,
+            "payment_account_id": deposit_account_id,
             "description": description,
             "external_id": external_id,
         }
@@ -371,10 +373,24 @@ def run_plugin(args):
         sys.exit(0)
 
     plugin_config = plugin_detail["config"]
-    book_id = plugin_config["target_book"]
+    target_book = plugin_config["target_book"]
     sync_balance = plugin_config.get("sync_balance", True)
 
-    logger.info("用户配置: book_id=%s, sync_balance=%s", book_id, sync_balance)
+    # 兼容多账本模式（target_book 为 list，account_select 为 dict）
+    # 和单账本模式（target_book 为 str，account_select 为 str）
+    def _resolve_book_ids(cfg):
+        tb = cfg["target_book"]
+        return tb if isinstance(tb, list) else [tb]
+
+    def _resolve_account(cfg, key, book_id):
+        val = cfg[key]
+        if isinstance(val, dict):
+            return val.get(book_id, "")
+        return val
+
+    book_ids = _resolve_book_ids(plugin_config)
+
+    logger.info("用户配置: book_ids=%s, sync_balance=%s", book_ids, sync_balance)
 
     # 3. 加载 wx_monitor / wx_bank_monitor 配置
     bm_config_path = pcfg.get("wx_monitor_config")
@@ -438,70 +454,90 @@ def run_plugin(args):
                         new_config = refreshed["config"]
                         if new_config != plugin_config:
                             plugin_config = new_config
-                            book_id = plugin_config["target_book"]
+                            book_ids = _resolve_book_ids(plugin_config)
                             sync_balance = plugin_config.get("sync_balance", True)
                             logger.info(
-                                "用户配置已更新: book_id=%s, sync_balance=%s",
-                                book_id, sync_balance,
+                                "用户配置已更新: book_ids=%s, sync_balance=%s",
+                                book_ids, sync_balance,
                             )
                         last_config_refresh = now
                     except Exception:
                         logger.exception("刷新插件配置失败 (非致命，沿用旧配置)")
 
-                all_entries = []
-                balance_tasks = []
+                all_entries_by_book = {bid: [] for bid in book_ids}
+                balance_tasks_by_book = {bid: [] for bid in book_ids}
 
                 for bank in banks:
                     old_cursor = state.get(bank["gh_id"], 0)
                     records = process_one_bank(bank, db, state)
 
                     for rec in records:
-                        entry = record_to_entry(rec, plugin_config)
-                        if entry:
-                            all_entries.append(entry)
+                        for bid in book_ids:
+                            deposit_id = _resolve_account(plugin_config, "deposit_account_id", bid)
+                            expense_id = _resolve_account(plugin_config, "default_expense_id", bid)
+                            income_id = _resolve_account(plugin_config, "default_income_id", bid)
+                            if not deposit_id:
+                                continue
+                            entry = record_to_entry(rec, bid, deposit_id, expense_id, income_id)
+                            if entry:
+                                all_entries_by_book[bid].append(entry)
 
                         if sync_balance:
                             fields = rec.get("fields", {})
                             balance = parse_amount(fields.get("balance"))
                             if balance is not None:
                                 snap_date = rec.get("msg_time", "")[:10]
-                                balance_tasks.append((balance, snap_date))
+                                for bid in book_ids:
+                                    balance_tasks_by_book[bid].append((balance, snap_date))
 
-                # 批量记账
-                if all_entries:
+                # 批量记账（每个账本分别提交）
+                batch_ok = True
+                for bid in book_ids:
+                    entries = all_entries_by_book[bid]
+                    if not entries:
+                        continue
                     try:
                         result = client.batch_create_entries(
-                            plugin_id, book_id, all_entries
+                            plugin_id, bid, entries
                         )
                         logger.info(
-                            "批量记账: total=%d, created=%d, skipped=%d",
+                            "批量记账 [book=%s]: total=%d, created=%d, skipped=%d",
+                            bid,
                             result.get("total", 0),
                             result.get("created", 0),
                             result.get("skipped", 0),
                         )
                     except Exception:
-                        logger.exception("批量记账 API 失败，本轮不更新游标")
-                        if once:
-                            break
-                        _interruptible_sleep(poll_interval, lambda: running)
-                        continue
+                        logger.exception("批量记账 API 失败 [book=%s]", bid)
+                        batch_ok = False
 
-                # 余额同步：只提交最新一条余额快照
-                if balance_tasks:
-                    deposit_account_id = plugin_config["deposit_account_id"]
-                    latest_balance, latest_date = balance_tasks[-1]
+                if not batch_ok:
+                    if once:
+                        break
+                    _interruptible_sleep(poll_interval, lambda: running)
+                    continue
+
+                # 余额同步：每个账本只提交最新一条余额快照
+                for bid in book_ids:
+                    tasks = balance_tasks_by_book[bid]
+                    if not tasks:
+                        continue
+                    deposit_account_id = _resolve_account(plugin_config, "deposit_account_id", bid)
+                    if not deposit_account_id:
+                        continue
+                    latest_balance, latest_date = tasks[-1]
                     try:
                         snap_result = client.submit_balance_snapshot(
                             deposit_account_id, latest_balance, latest_date
                         )
                         logger.info(
-                            "余额快照: balance=%.2f, status=%s, diff=%s",
-                            latest_balance,
+                            "余额快照 [book=%s]: balance=%.2f, status=%s, diff=%s",
+                            bid, latest_balance,
                             snap_result.get("status"),
                             snap_result.get("difference"),
                         )
                     except Exception:
-                        logger.exception("余额快照提交失败 (非致命)")
+                        logger.exception("余额快照提交失败 [book=%s] (非致命)", bid)
 
                 # 成功后保存游标
                 save_state(state, DEFAULT_STATE_PATH)

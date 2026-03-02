@@ -142,7 +142,7 @@ export default function AccountPicker({
 
   useEffect(() => {
     const bid = bookId ?? currentBookId;
-    if (visible && bid && !tree) {
+    if (visible && bid && (!tree || bid !== currentBookId)) {
       fetchTree(bid);
     }
   }, [visible, bookId, currentBookId]);

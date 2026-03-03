@@ -115,6 +115,8 @@ async def get_balance_sheet(
             "credit_total": float(total_credit),
             "balance": float(balance),
             "_raw_debit_minus_credit": float(total_debit - total_credit),
+            "_balance_dec": balance,
+            "_raw_dc_dec": total_debit - total_credit,
         }
         items_by_id[row.id] = item
 
@@ -122,24 +124,26 @@ async def get_balance_sheet(
             children_map.setdefault(row.parent_id, []).append(row.id)
 
     # 自底向上汇总：如果父科目存在于当前结果集中，把子科目余额加到父科目
-    def sum_up(account_id: str) -> tuple[float, float]:
-        """返回 (balance, raw_debit_minus_credit) 的子树汇总"""
+    def sum_up(account_id: str) -> tuple[Decimal, Decimal]:
+        """返回 (balance, raw_debit_minus_credit) 的子树汇总（全程 Decimal）"""
         item = items_by_id[account_id]
         child_ids = children_map.get(account_id, [])
         if not child_ids:
-            return item["balance"], item["_raw_debit_minus_credit"]
+            return item["_balance_dec"], item["_raw_dc_dec"]
 
         total_bal = Decimal("0")
         total_raw = Decimal("0")
         for cid in child_ids:
             if cid in items_by_id:
                 cb, cr = sum_up(cid)
-                total_bal += Decimal(str(cb))
-                total_raw += Decimal(str(cr))
+                total_bal += cb
+                total_raw += cr
 
         item["balance"] = float(total_bal)
         item["_raw_debit_minus_credit"] = float(total_raw)
-        return item["balance"], item["_raw_debit_minus_credit"]
+        item["_balance_dec"] = total_bal
+        item["_raw_dc_dec"] = total_raw
+        return total_bal, total_raw
 
     # 找出所有根节点（无父或父不在当前结果集中）并汇总
     root_ids = [
@@ -162,26 +166,28 @@ async def get_balance_sheet(
     for item in items_by_id.values():
         # 清除内部字段
         raw_dc = item.pop("_raw_debit_minus_credit")
+        raw_dc_dec = item.pop("_raw_dc_dec")
+        bal_dec = item.pop("_balance_dec")
         is_root = item["account_id"] in root_ids
 
         if item["account_type"] == "asset":
             assets.append(item)
             if is_root:
-                total_asset += Decimal(str(raw_dc))
+                total_asset += raw_dc_dec
         elif item["account_type"] == "liability":
             liabilities.append(item)
             if is_root:
-                total_liability += Decimal(str(item["balance"]))
+                total_liability += bal_dec
         elif item["account_type"] == "equity":
             equities.append(item)
             if is_root:
-                total_equity += Decimal(str(item["balance"]))
+                total_equity += bal_dec
         elif item["account_type"] == "income":
             if is_root:
-                income_total += Decimal(str(item["balance"]))
+                income_total += bal_dec
         elif item["account_type"] == "expense":
             if is_root:
-                expense_total += Decimal(str(item["balance"]))
+                expense_total += bal_dec
 
     # 按 code 排序
     assets.sort(key=lambda x: x["account_code"])

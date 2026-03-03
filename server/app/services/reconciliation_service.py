@@ -101,7 +101,7 @@ async def create_snapshot(
 
     # 计算账本余额
     book_balance = await _get_book_balance(db, account_id, book_id, target_date)
-    difference = external_balance - book_balance
+    difference = (external_balance - book_balance).quantize(Decimal("0.01"))
 
     # 创建快照（先设 balanced，后续根据差异可能更新为 reconciled）
     snapshot = BalanceSnapshot(
@@ -173,7 +173,7 @@ async def create_snapshot(
                 db.add(adjust_account)
                 await db.flush()
 
-        abs_diff = abs(difference)
+        abs_diff = abs(difference).quantize(Decimal("0.01"))
 
         entry = JournalEntry(
             book_id=book_id,

@@ -4,6 +4,8 @@ import { Text, View } from '@/components/Themed';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney, getAmountColor } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 
 type Props = {
   netAsset: number;
@@ -13,41 +15,36 @@ type Props = {
   onPress?: () => void;
 };
 
-function fmt(n: number): string {
-  const abs = Math.abs(n);
-  const s = abs.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return n < 0 ? `-¥${s}` : `¥${s}`;
-}
-
 export default function NetWorthBadge({ netAsset, change, totalAsset, totalLiability, onPress }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
   const changeSign = change > 0 ? '+' : change < 0 ? '' : '';
-  const changeColor = change > 0 ? Colors.asset : change < 0 ? Colors.liability : colors.textSecondary;
+  const changeColor = getAmountColor(change);
   const changeIcon = change > 0 ? 'arrow-up' : change < 0 ? 'arrow-down' : 'minus';
 
   return (
     <Pressable onPress={onPress} style={[styles.container, { backgroundColor: colors.card }]}>
       <Text style={[styles.label, { color: colors.textSecondary }]}>净资产</Text>
-      <Text style={[styles.amount, { color: colors.text }]}>{fmt(netAsset)}</Text>
+      <Text style={[styles.amount, { color: colors.text }]}>{formatMoney(netAsset)}</Text>
 
       <View style={styles.changeBadge}>
         <FontAwesome name={changeIcon} size={10} color={changeColor} />
         <Text style={[styles.changeText, { color: changeColor }]}>
-          较上月 {changeSign}{fmt(change)}
+          较上月 {changeSign}{formatMoney(change)}
         </Text>
       </View>
 
       <View style={styles.row}>
         <View style={styles.item}>
           <Text style={[styles.itemLabel, { color: colors.textSecondary }]}>总资产</Text>
-          <Text style={[styles.itemValue, { color: Colors.asset }]}>{fmt(totalAsset)}</Text>
+          <Text style={[styles.itemValue, { color: getAmountColor(totalAsset) }]}>{formatMoney(totalAsset)}</Text>
         </View>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <View style={styles.item}>
           <Text style={[styles.itemLabel, { color: colors.textSecondary }]}>总负债</Text>
-          <Text style={[styles.itemValue, { color: Colors.liability }]}>{fmt(totalLiability)}</Text>
+          <Text style={[styles.itemValue, { color: getAmountColor(totalLiability, true) }]}>{formatMoney(totalLiability)}</Text>
         </View>
       </View>
     </Pressable>

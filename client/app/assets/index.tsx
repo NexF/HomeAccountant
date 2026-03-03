@@ -17,6 +17,9 @@ import { useAssetStore } from '@/stores/assetStore';
 import AssetCard from '@/features/asset/AssetCard';
 import type { AssetResponse } from '@/services/assetService';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 
 const STATUS_TABS = [
   { key: null, label: '全部' },
@@ -25,6 +28,7 @@ const STATUS_TABS = [
 ] as const;
 
 export default function AssetListScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -63,16 +67,19 @@ export default function AssetListScreen() {
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>固定资产</Text>
-        {isAdmin ? (
-          <Pressable
-            style={[styles.addBtn, { backgroundColor: Colors.primary }]}
-            onPress={() => router.push('/assets/new' as any)}
-          >
-            <FontAwesome name="plus" size={14} color="#FFF" />
-          </Pressable>
-        ) : (
-          <View style={styles.headerBtn} />
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <PrivacyToggle color={colors.textSecondary} />
+          {isAdmin ? (
+            <Pressable
+              style={[styles.addBtn, { backgroundColor: Colors.primary }]}
+              onPress={() => router.push('/assets/new' as any)}
+            >
+              <FontAwesome name="plus" size={14} color="#FFF" />
+            </Pressable>
+          ) : (
+            <View style={styles.headerBtn} />
+          )}
+        </View>
       </View>
 
       {/* Summary Card */}
@@ -84,7 +91,7 @@ export default function AssetListScreen() {
                 资产总原值
               </Text>
               <Text style={styles.summaryValue}>
-                ¥{summary.total_original_cost.toLocaleString()}
+                {formatMoney(summary.total_original_cost)}
               </Text>
             </View>
             <View style={styles.summaryItem}>
@@ -92,7 +99,7 @@ export default function AssetListScreen() {
                 净值合计
               </Text>
               <Text style={[styles.summaryValue, { color: Colors.primary }]}>
-                ¥{summary.total_net_book_value.toLocaleString()}
+                {formatMoney(summary.total_net_book_value)}
               </Text>
             </View>
             <View style={styles.summaryItem}>
@@ -100,7 +107,7 @@ export default function AssetListScreen() {
                 累计折旧
               </Text>
               <Text style={[styles.summaryValue, { color: Colors.asset }]}>
-                ¥{summary.total_accumulated_depreciation.toLocaleString()}
+                {formatMoney(summary.total_accumulated_depreciation)}
               </Text>
             </View>
           </View>

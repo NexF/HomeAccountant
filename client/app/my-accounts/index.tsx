@@ -11,6 +11,9 @@ import {
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter, Stack } from 'expo-router';
 import { Text, TextInput, View } from '@/components/Themed';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
@@ -63,6 +66,7 @@ type CategoryData = AccountCategory & {
 /* ─── component ─── */
 
 export default function MyAccountsScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -178,16 +182,6 @@ export default function MyAccountsScreen() {
     }
   };
 
-  // 格式化金额
-  const fmt = (val: number) => {
-    const abs = Math.abs(val);
-    const str = abs.toLocaleString('zh-CN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    return val < 0 ? `-¥${str}` : `¥${str}`;
-  };
-
   const balanceColor = (cat: AccountCategory, val: number) => {
     if (val === 0) return colors.textSecondary;
     return cat.accountType === 'liability' ? Colors.liability : Colors.asset;
@@ -210,12 +204,15 @@ export default function MyAccountsScreen() {
             <FontAwesome name="chevron-left" size={18} color={colors.text} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.text }]}>我的账户</Text>
-          <Pressable
-            style={[styles.addBtn, { backgroundColor: Colors.primary }]}
-            onPress={() => openModal(null)}
-          >
-            <FontAwesome name="plus" size={14} color="#FFF" />
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <PrivacyToggle color={colors.textSecondary} />
+            <Pressable
+              style={[styles.addBtn, { backgroundColor: Colors.primary }]}
+              onPress={() => openModal(null)}
+            >
+              <FontAwesome name="plus" size={14} color="#FFF" />
+            </Pressable>
+          </View>
         </View>
 
         {/* Content */}
@@ -272,7 +269,7 @@ export default function MyAccountsScreen() {
                       { color: balanceColor(cat, cat.subtotal) },
                     ]}
                   >
-                    {fmt(cat.subtotal)}
+                    {formatMoney(cat.subtotal)}
                   </Text>
                   <FontAwesome
                     name={collapsed[cat.key] ? 'caret-right' : 'caret-down'}
@@ -304,7 +301,7 @@ export default function MyAccountsScreen() {
                             { color: balanceColor(cat, a.balance) },
                           ]}
                         >
-                          {fmt(a.balance)}
+                          {formatMoney(a.balance)}
                         </Text>
                       </View>
                     ))}

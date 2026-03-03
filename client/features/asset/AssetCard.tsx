@@ -3,6 +3,8 @@ import { StyleSheet, Pressable } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useColorScheme } from '@/components/useColorScheme';
 import type { AssetResponse } from '@/services/assetService';
 
@@ -22,6 +24,7 @@ const GRANULARITY_LABEL: Record<string, string> = {
 };
 
 export default function AssetCard({ asset, onPress }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const isDisposed = asset.status === 'disposed';
@@ -87,12 +90,12 @@ export default function AssetCard({ asset, onPress }: Props) {
       <View style={styles.stats}>
         <View style={styles.statItem}>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>原值</Text>
-          <Text style={styles.statValue}>¥ {asset.original_cost.toLocaleString()}</Text>
+          <Text style={styles.statValue}>{formatMoney(asset.original_cost)}</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>净值</Text>
           <Text style={[styles.statValue, { color: Colors.primary }]}>
-            ¥ {asset.net_book_value.toLocaleString()}
+            {formatMoney(asset.net_book_value)}
           </Text>
         </View>
         <View style={styles.statItem}>
@@ -100,7 +103,7 @@ export default function AssetCard({ asset, onPress }: Props) {
             {asset.depreciation_granularity === 'daily' ? '日折旧' : '月折旧'}
           </Text>
           <Text style={[styles.statValue, { color: Colors.asset }]}>
-            ¥ {asset.period_depreciation.toFixed(2)}
+            {formatMoney(asset.period_depreciation)}
           </Text>
         </View>
       </View>

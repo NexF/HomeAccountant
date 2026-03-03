@@ -4,6 +4,8 @@ import { Text, View } from '@/components/Themed';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 
 type Slice = {
   label: string;
@@ -34,13 +36,10 @@ function arcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: nu
   return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y} Z`;
 }
 
-function fmt(n: number): string {
-  const abs = Math.abs(n);
-  const s = abs.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return n < 0 ? `-¥${s}` : `¥${s}`;
-}
+const fmt = formatMoney;
 
 export default function PieChart({ data, size = 180, title }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 

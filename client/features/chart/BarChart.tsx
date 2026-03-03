@@ -4,6 +4,8 @@ import { Text, View } from '@/components/Themed';
 import Svg, { Rect, Text as SvgText, Line } from 'react-native-svg';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoneyShort } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 
 type BarGroup = {
   label: string;
@@ -17,13 +19,8 @@ type Props = {
   title?: string;
 };
 
-function fmtShort(v: number): string {
-  const abs = Math.abs(v);
-  if (abs >= 10000) return `${(v / 10000).toFixed(1)}万`;
-  return v.toFixed(0);
-}
-
 export default function BarChart({ data, width = 340, height = 200, title }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
@@ -84,7 +81,7 @@ export default function BarChart({ data, width = 340, height = 200, title }: Pro
               fontSize={10}
               textAnchor="end"
             >
-              {fmtShort(yl.val)}
+              {formatMoneyShort(yl.val)}
             </SvgText>
           </React.Fragment>
         ))}

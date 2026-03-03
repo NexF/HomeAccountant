@@ -13,6 +13,9 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text, View } from '@/components/Themed';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import {
@@ -36,6 +39,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function EntryDetailScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -174,6 +178,7 @@ export default function EntryDetailScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>分录详情</Text>
         <View style={styles.headerActions}>
+          <PrivacyToggle color={colors.textSecondary} />
           {canConvert && (
             <Pressable disabled style={[styles.headerBtn, { opacity: 0.3 }]}>
               <FontAwesome name="exchange" size={16} color={Colors.neutral} />
@@ -251,7 +256,7 @@ export default function EntryDetailScreen() {
                   ]}
                 >
                   {Number(line.debit_amount) > 0
-                    ? `¥${Number(line.debit_amount).toLocaleString()}`
+                    ? formatMoney(Number(line.debit_amount))
                     : '-'}
                 </Text>
                 <Text
@@ -261,7 +266,7 @@ export default function EntryDetailScreen() {
                   ]}
                 >
                   {Number(line.credit_amount) > 0
-                    ? `¥${Number(line.credit_amount).toLocaleString()}`
+                    ? formatMoney(Number(line.credit_amount))
                     : '-'}
                 </Text>
               </View>
@@ -270,10 +275,10 @@ export default function EntryDetailScreen() {
             <View style={[styles.lineRow, styles.totalRow]}>
               <Text style={[styles.lineAccount, styles.totalText]}>合计</Text>
               <Text style={[styles.lineAmount, styles.totalText, { color: Colors.asset }]}>
-                ¥{entry.lines.reduce((s, l) => s + Number(l.debit_amount), 0).toLocaleString()}
+                {formatMoney(entry.lines.reduce((s, l) => s + Number(l.debit_amount), 0))}
               </Text>
               <Text style={[styles.lineAmount, styles.totalText, { color: Colors.liability }]}>
-                ¥{entry.lines.reduce((s, l) => s + Number(l.credit_amount), 0).toLocaleString()}
+                {formatMoney(entry.lines.reduce((s, l) => s + Number(l.credit_amount), 0))}
               </Text>
             </View>
           </View>

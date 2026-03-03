@@ -1,15 +1,18 @@
 import React from 'react';
-import { StyleSheet, ScrollView, Pressable, Platform, StatusBar } from 'react-native';
+import { StyleSheet, ScrollView, Pressable, Platform, StatusBar, Switch } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { usePrivacyStore } from '@/stores/privacyStore';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
+  const hideAmounts = usePrivacyStore((s) => s.hideAmounts);
+  const toggleHide = usePrivacyStore((s) => s.toggleHideAmounts);
 
   return (
     <View style={styles.container}>
@@ -30,6 +33,10 @@ export default function SettingsScreen() {
           <View style={styles.row}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>货币显示</Text>
             <Text style={[styles.value, { color: colors.text }]}>¥ (CNY)</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>隐藏金额</Text>
+            <Switch value={hideAmounts} onValueChange={toggleHide} />
           </View>
           <View style={styles.row}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>通知</Text>

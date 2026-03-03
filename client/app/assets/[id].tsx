@@ -13,6 +13,9 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import {
@@ -36,6 +39,7 @@ const GRANULARITY_LABEL: Record<string, string> = {
 };
 
 export default function AssetDetailScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -147,8 +151,8 @@ export default function AssetDetailScreen() {
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{asset.name}</Text>
-        <View style={styles.headerBtn} />
-      </View>
+  <PrivacyToggle color={colors.textSecondary} />
+</View>
 
       <ScrollView style={styles.scroll}>
         {/* 基本信息 */}
@@ -158,7 +162,7 @@ export default function AssetDetailScreen() {
           <InfoRow label="购入日期" value={asset.purchase_date} colors={colors} />
           <InfoRow
             label="原值"
-            value={`¥ ${asset.original_cost.toLocaleString()}`}
+            value={formatMoney(asset.original_cost)}
             colors={colors}
           />
           <InfoRow label="残值率" value={`${asset.residual_rate}%`} colors={colors} />
@@ -186,19 +190,19 @@ export default function AssetDetailScreen() {
           <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
             <InfoRow
               label="累计折旧"
-              value={`¥ ${asset.accumulated_depreciation.toLocaleString()}`}
+              value={formatMoney(asset.accumulated_depreciation)}
               colors={colors}
               valueColor={Colors.asset}
             />
             <InfoRow
               label="账面净值"
-              value={`¥ ${asset.net_book_value.toLocaleString()}`}
+              value={formatMoney(asset.net_book_value)}
               colors={colors}
               valueColor={Colors.primary}
             />
             <InfoRow
               label={asset.depreciation_granularity === 'daily' ? '日折旧额' : '月折旧额'}
-              value={`¥ ${asset.period_depreciation.toFixed(2)}`}
+              value={formatMoney(asset.period_depreciation)}
               colors={colors}
             />
             <InfoRow

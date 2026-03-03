@@ -29,15 +29,12 @@ import LoanOverview from '@/features/loan/LoanOverview';
 import EntryCard from '@/features/entry/EntryCard';
 import { useProfileNavStore } from '@/stores/profileNavStore';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-
-function fmt(n: number): string {
-  const abs = Math.abs(n);
-  const s = abs.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return n < 0 ? `-¥${s}` : `¥${s}`;
-}
+import { formatMoney, getAmountColor } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 
 
 export default function DashboardScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -136,8 +133,8 @@ export default function DashboardScreen() {
           <FontAwesome name="arrow-up" size={12} color={Colors.asset} />
           <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>本月收入</Text>
         </View>
-        <Text style={[styles.cardAmount, { color: Colors.asset }]}>
-          {fmt(d?.month_income ?? 0)}
+        <Text style={[styles.cardAmount, { color: getAmountColor(d?.month_income ?? 0) }]}>
+          {formatMoney(d?.month_income ?? 0)}
         </Text>
       </View>
       <View style={[styles.card, { backgroundColor: colors.card }]}>
@@ -145,8 +142,8 @@ export default function DashboardScreen() {
           <FontAwesome name="arrow-down" size={12} color={Colors.liability} />
           <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>本月费用</Text>
         </View>
-        <Text style={[styles.cardAmount, { color: Colors.liability }]}>
-          {fmt(d?.month_expense ?? 0)}
+        <Text style={[styles.cardAmount, { color: getAmountColor(d?.month_expense ?? 0, true) }]}>
+          {formatMoney(d?.month_expense ?? 0)}
         </Text>
       </View>
     </View>
@@ -158,10 +155,10 @@ export default function DashboardScreen() {
       <Text
         style={[
           styles.surplusAmount,
-          { color: (d?.month_net_income ?? 0) >= 0 ? Colors.asset : Colors.liability },
+          { color: getAmountColor(d?.month_net_income ?? 0) },
         ]}
       >
-        {fmt(d?.month_net_income ?? 0)}
+        {formatMoney(d?.month_net_income ?? 0)}
       </Text>
     </View>
   );

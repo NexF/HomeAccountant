@@ -4,27 +4,15 @@ import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import type { IncomeStatementResponse, AccountBalanceItem } from '@/services/reportService';
-
-function formatMoney(v: number): string {
-  const abs = Math.abs(v);
-  const formatted = abs.toLocaleString('zh-CN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return v < 0 ? `-¥${formatted}` : `¥${formatted}`;
-}
+import { formatMoney, getAmountColor } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 
 type Props = {
   data: IncomeStatementResponse;
 };
 
 function AccountRow({ item, colors }: { item: AccountBalanceItem; colors: any }) {
-  const balanceColor =
-    item.account_type === 'income'
-      ? Colors.asset
-      : item.account_type === 'expense'
-      ? Colors.liability
-      : colors.text;
+  const balanceColor = getAmountColor(item.balance, item.account_type === 'expense');
 
   return (
     <View style={[styles.row, { borderBottomColor: colors.border }]}>
@@ -75,6 +63,7 @@ function PercentBar({ items, total, type, colors }: {
 }
 
 export default function IncomeStatementTable({ data }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
@@ -85,13 +74,13 @@ export default function IncomeStatementTable({ data }: Props) {
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>总收入</Text>
-            <Text style={[styles.summaryValue, { color: Colors.asset }]}>
+            <Text style={[styles.summaryValue, { color: getAmountColor(data.total_income) }]}>
               {formatMoney(data.total_income)}
             </Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>总费用</Text>
-            <Text style={[styles.summaryValue, { color: Colors.liability }]}>
+            <Text style={[styles.summaryValue, { color: getAmountColor(data.total_expense, true) }]}>
               {formatMoney(data.total_expense)}
             </Text>
           </View>
@@ -101,7 +90,7 @@ export default function IncomeStatementTable({ data }: Props) {
           <Text
             style={[
               styles.netIncomeValue,
-              { color: data.net_income >= 0 ? Colors.asset : Colors.liability },
+              { color: getAmountColor(data.net_income) },
             ]}
           >
             {formatMoney(data.net_income)}
@@ -118,7 +107,7 @@ export default function IncomeStatementTable({ data }: Props) {
           ))}
           <View style={[styles.row, styles.totalRow]}>
             <Text style={[styles.totalLabel, { color: colors.text }]}>收入合计</Text>
-            <Text style={[styles.totalAmount, { color: Colors.asset }]}>
+            <Text style={[styles.totalAmount, { color: getAmountColor(data.total_income) }]}>
               {formatMoney(data.total_income)}
             </Text>
           </View>
@@ -135,7 +124,7 @@ export default function IncomeStatementTable({ data }: Props) {
           ))}
           <View style={[styles.row, styles.totalRow]}>
             <Text style={[styles.totalLabel, { color: colors.text }]}>费用合计</Text>
-            <Text style={[styles.totalAmount, { color: Colors.liability }]}>
+            <Text style={[styles.totalAmount, { color: getAmountColor(data.total_expense, true) }]}>
               {formatMoney(data.total_expense)}
             </Text>
           </View>

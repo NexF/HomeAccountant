@@ -16,6 +16,8 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { budgetService, type BudgetResponse } from '@/services/budgetService';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import AccountPicker from '@/features/entry/AccountPicker';
 import type { AccountTreeNode } from '@/services/accountService';
 import type { AccountType } from '@/stores/accountStore';
@@ -29,6 +31,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function BudgetSettingsScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -202,7 +205,7 @@ export default function BudgetSettingsScreen() {
                   预算额度
                 </Text>
                 <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>
-                  ¥{totalBudget.amount.toLocaleString()}
+                  {formatMoney(totalBudget.amount)}
                 </Text>
               </View>
               <View style={{ flex: 1, backgroundColor: 'transparent' }}>
@@ -210,7 +213,7 @@ export default function BudgetSettingsScreen() {
                   本月已用
                 </Text>
                 <Text style={{ fontSize: 20, fontWeight: '700', color: totalStatusColor }}>
-                  ¥{totalBudget.used_amount.toLocaleString()}
+                  {formatMoney(totalBudget.used_amount)}
                 </Text>
               </View>
               <Text style={{ fontSize: 16, fontWeight: '700', color: totalStatusColor }}>

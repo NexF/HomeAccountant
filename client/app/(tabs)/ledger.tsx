@@ -13,6 +13,8 @@ import {
   Modal,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { formatAmount } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '@/components/Themed';
@@ -264,10 +266,10 @@ function EntryDetailPane({
                   {line.account_name || line.account_id}
                 </Text>
                 <Text style={[styles.lineCell, styles.lineAmount, { fontVariant: ['tabular-nums'] }]}>
-                  {Number(line.debit_amount) > 0 ? Number(line.debit_amount).toFixed(2) : '-'}
+                  {Number(line.debit_amount) > 0 ? formatAmount(Number(line.debit_amount)) : '-'}
                 </Text>
                 <Text style={[styles.lineCell, styles.lineAmount, { fontVariant: ['tabular-nums'] }]}>
-                  {Number(line.credit_amount) > 0 ? Number(line.credit_amount).toFixed(2) : '-'}
+                  {Number(line.credit_amount) > 0 ? formatAmount(Number(line.credit_amount)) : '-'}
                 </Text>
               </View>
             ))}
@@ -464,6 +466,7 @@ function EntryDetailPane({
 }
 
 export default function LedgerScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();

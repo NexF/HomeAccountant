@@ -13,6 +13,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 import { useBookStore } from '@/stores/bookStore';
 import { assetService } from '@/services/assetService';
 import AccountPicker from '@/features/entry/AccountPicker';
@@ -28,6 +31,7 @@ function todayStr() {
 type NewAssetScreenProps = { onClose?: () => void };
 
 export default function NewAssetScreen({ onClose }: NewAssetScreenProps = {}) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -130,17 +134,20 @@ export default function NewAssetScreen({ onClose }: NewAssetScreenProps = {}) {
             <FontAwesome name="chevron-left" size={18} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>新建固定资产</Text>
-          <Pressable
-            onPress={handleSubmit}
-            style={[styles.submitBtn, { backgroundColor: Colors.primary, opacity: submitting ? 0.6 : 1 }]}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <Text style={styles.submitText}>保存</Text>
-            )}
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <PrivacyToggle color={colors.textSecondary} />
+            <Pressable
+              onPress={handleSubmit}
+              style={[styles.submitBtn, { backgroundColor: Colors.primary, opacity: submitting ? 0.6 : 1 }]}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Text style={styles.submitText}>保存</Text>
+              )}
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
@@ -294,10 +301,10 @@ export default function NewAssetScreen({ onClose }: NewAssetScreenProps = {}) {
               <View style={styles.previewRow}>
                 <Text style={[styles.previewLabel, { color: colors.textSecondary }]}>可折旧总额</Text>
                 <Text style={styles.previewValue}>
-                  ¥{(
+                  {formatMoney(
                     parseFloat(originalCost) *
                     (1 - (parseFloat(residualRate) || 5) / 100)
-                  ).toFixed(2)}
+                  )}
                 </Text>
               </View>
               <View style={styles.previewRow}>
@@ -305,13 +312,13 @@ export default function NewAssetScreen({ onClose }: NewAssetScreenProps = {}) {
                   {depGranularity === 'daily' ? '每日折旧额' : '每月折旧额'}
                 </Text>
                 <Text style={[styles.previewValue, { color: Colors.primary }]}>
-                  ¥{(() => {
+                  {(() => {
                     const depreciable = parseFloat(originalCost) * (1 - (parseFloat(residualRate) || 5) / 100);
                     const months = parseInt(usefulLifeMonths) || 1;
                     if (depGranularity === 'daily') {
-                      return (depreciable / (months * 30)).toFixed(2);
+                      return formatMoney(depreciable / (months * 30));
                     }
-                    return (depreciable / months).toFixed(2);
+                    return formatMoney(depreciable / months);
                   })()}
                 </Text>
               </View>

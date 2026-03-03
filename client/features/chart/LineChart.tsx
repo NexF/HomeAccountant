@@ -4,6 +4,8 @@ import { Text, View } from '@/components/Themed';
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoneyShort } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 
 type DataPoint = {
   label: string;
@@ -25,6 +27,7 @@ export default function LineChart({
   color = Colors.primary,
   title,
 }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
@@ -68,11 +71,7 @@ export default function LineChart({
   const step = Math.max(1, Math.floor(data.length / 6));
   const xLabels = data.filter((_, i) => i % step === 0 || i === data.length - 1);
 
-  function fmtY(v: number): string {
-    const abs = Math.abs(v);
-    if (abs >= 10000) return `${(v / 10000).toFixed(1)}万`;
-    return v.toFixed(0);
-  }
+  const fmtY = formatMoneyShort;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.card }]}>

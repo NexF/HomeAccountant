@@ -3,6 +3,8 @@ import { StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal } from 'rea
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { useAssetStore } from '@/stores/assetStore';
@@ -170,7 +172,7 @@ function AssetDetailInline({
             ['资产名称', asset.name],
             ['关联科目', asset.account_name],
             ['购入日期', asset.purchase_date],
-            ['原值', `¥ ${asset.original_cost.toLocaleString()}`],
+            ['原值', formatMoney(asset.original_cost)],
             ['残值率', `${asset.residual_rate}%`],
             ['使用寿命', `${asset.useful_life_months} 个月`],
             ['折旧方式', ASSET_METHOD_LABEL[asset.depreciation_method] ?? asset.depreciation_method],
@@ -187,9 +189,9 @@ function AssetDetailInline({
         {asset.depreciation_method !== 'none' && (
           <View style={[styles.formCard, { backgroundColor: colors.card, marginHorizontal: 16, marginBottom: 16, overflow: 'hidden' }]}>
             {([
-              ['累计折旧', `¥ ${asset.accumulated_depreciation.toLocaleString()}`, Colors.asset],
-              ['账面净值', `¥ ${asset.net_book_value.toLocaleString()}`, Colors.primary],
-              [asset.depreciation_granularity === 'daily' ? '日折旧额' : '月折旧额', `¥ ${asset.period_depreciation.toFixed(2)}`],
+              ['累计折旧', formatMoney(asset.accumulated_depreciation), Colors.asset],
+              ['账面净值', formatMoney(asset.net_book_value), Colors.primary],
+              [asset.depreciation_granularity === 'daily' ? '日折旧额' : '月折旧额', formatMoney(asset.period_depreciation)],
               ['折旧进度', `${asset.depreciation_percentage}%`],
               ['剩余月数', `${asset.remaining_months} 个月`],
             ] as [string, string, string?][]).map(([label, value, valueColor]) => (
@@ -299,6 +301,7 @@ function AssetDetailInline({
 }
 
 export default function AssetsPane() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const currentBook = useBookStore((s) => s.currentBook);
@@ -341,9 +344,9 @@ export default function AssetsPane() {
         {summary && (
           <View style={[styles.formCard, { backgroundColor: colors.card, padding: 16, marginBottom: 12 }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>资产总原值</Text><Text style={{ fontSize: 16, fontWeight: '700' }}>¥{summary.total_original_cost.toLocaleString()}</Text></View>
-              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>净值合计</Text><Text style={{ fontSize: 16, fontWeight: '700', color: Colors.primary }}>¥{summary.total_net_book_value.toLocaleString()}</Text></View>
-              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>累计折旧</Text><Text style={{ fontSize: 16, fontWeight: '700', color: Colors.asset }}>¥{summary.total_accumulated_depreciation.toLocaleString()}</Text></View>
+              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>资产总原值</Text><Text style={{ fontSize: 16, fontWeight: '700' }}>{formatMoney(summary.total_original_cost)}</Text></View>
+              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>净值合计</Text><Text style={{ fontSize: 16, fontWeight: '700', color: Colors.primary }}>{formatMoney(summary.total_net_book_value)}</Text></View>
+              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>累计折旧</Text><Text style={{ fontSize: 16, fontWeight: '700', color: Colors.asset }}>{formatMoney(summary.total_accumulated_depreciation)}</Text></View>
             </View>
             <Text style={{ fontSize: 12, color: colors.textSecondary }}>共 {summary.asset_count} 项资产，{summary.active_count} 项使用中</Text>
           </View>

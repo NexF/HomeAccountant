@@ -31,6 +31,9 @@ import AmountInput from '@/features/entry/AmountInput';
 import AccountPicker from '@/features/entry/AccountPicker';
 import type { AccountType } from '@/stores/accountStore';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 
 type PickerTarget =
   | 'category'
@@ -53,6 +56,7 @@ function todayStr() {
 }
 
 export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenProps = {}) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -138,7 +142,7 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
       for (let i = 0; i < m; i++) { total += rem * mr; rem -= pp; }
       ti = total;
     }
-    return { monthlyPayment: mp.toFixed(2), totalInterest: ti.toFixed(2), totalRepayment: (p + ti).toFixed(2) };
+    return { monthlyPayment: formatMoney(mp), totalInterest: formatMoney(ti), totalRepayment: formatMoney(p + ti) };
   })();
 
   // AccountPicker 控制
@@ -378,7 +382,7 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
     }
   };
 
-  const typeConfig = ENTRY_TYPES.find((t) => t.key === entryType)!;
+  const typeConfig = ENTRY_TYPES.find((t) => t.key === entryType) ?? { key: entryType as EntryType, label: entryType, icon: 'pencil' as const, color: Colors.neutral };
 
   const handleSubmit = async () => {
     if (!currentBook) {
@@ -796,18 +800,18 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
                             {loanMethod === 'equal_installment' ? '每月月供' : '首月月供'}
                           </Text>
                           <Text style={[styles.loanPreviewValue, { color: typeConfig.color }]}>
-                            ¥{loanPreview.monthlyPayment}
+                            {loanPreview.monthlyPayment}
                           </Text>
                         </View>
                         <View style={styles.loanPreviewRow}>
                           <Text style={[styles.loanPreviewLabel, { color: colors.textSecondary }]}>利息总额</Text>
                           <Text style={[styles.loanPreviewValue, { color: colors.textSecondary }]}>
-                            ¥{loanPreview.totalInterest}
+                            {loanPreview.totalInterest}
                           </Text>
                         </View>
                         <View style={styles.loanPreviewRow}>
                           <Text style={[styles.loanPreviewLabel, { color: colors.textSecondary }]}>还款总额</Text>
-                          <Text style={styles.loanPreviewValue}>¥{loanPreview.totalRepayment}</Text>
+                          <Text style={styles.loanPreviewValue}>{loanPreview.totalRepayment}</Text>
                         </View>
                       </View>
                     )}
@@ -1025,18 +1029,18 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
                         {loanMethod === 'equal_installment' ? '每月月供' : '首月月供'}
                       </Text>
                       <Text style={[styles.loanPreviewValue, { color: typeConfig.color }]}>
-                        ¥{loanPreview.monthlyPayment}
+                        {loanPreview.monthlyPayment}
                       </Text>
                     </View>
                     <View style={styles.loanPreviewRow}>
                       <Text style={[styles.loanPreviewLabel, { color: colors.textSecondary }]}>利息总额</Text>
                       <Text style={[styles.loanPreviewValue, { color: colors.textSecondary }]}>
-                        ¥{loanPreview.totalInterest}
+                        {loanPreview.totalInterest}
                       </Text>
                     </View>
                     <View style={styles.loanPreviewRow}>
                       <Text style={[styles.loanPreviewLabel, { color: colors.textSecondary }]}>还款总额</Text>
-                      <Text style={styles.loanPreviewValue}>¥{loanPreview.totalRepayment}</Text>
+                      <Text style={styles.loanPreviewValue}>{loanPreview.totalRepayment}</Text>
                     </View>
                   </View>
                 )}
@@ -1077,13 +1081,16 @@ export default function NewEntryScreen({ editIdProp, onClose }: NewEntryScreenPr
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>{isEditMode ? '编辑分录' : '记一笔'}</Text>
-        <Pressable
-          onPress={handleSubmit}
-          style={[styles.submitBtn, { backgroundColor: typeConfig.color, opacity: submitting ? 0.6 : 1 }]}
-          disabled={submitting}
-        >
-          <Text style={styles.submitText}>{submitting ? '...' : '保存'}</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <PrivacyToggle color={colors.textSecondary} />
+          <Pressable
+            onPress={handleSubmit}
+            style={[styles.submitBtn, { backgroundColor: typeConfig.color, opacity: submitting ? 0.6 : 1 }]}
+            disabled={submitting}
+          >
+            <Text style={styles.submitText}>{submitting ? '...' : '保存'}</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Entry Type Tabs */}

@@ -7,15 +7,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { syncService } from '@/services/syncService';
 import type { BalanceSheetResponse, AccountBalanceItem } from '@/services/reportService';
-
-function formatMoney(v: number): string {
-  const abs = Math.abs(v);
-  const formatted = abs.toLocaleString('zh-CN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return v < 0 ? `-¥${formatted}` : `¥${formatted}`;
-}
+import { formatMoney, getAmountColor } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 
 type TreeNode = AccountBalanceItem & { children: TreeNode[]; depth: number };
 
@@ -78,14 +71,10 @@ function AccountTreeRow({
   isMobile?: boolean;
 }) {
   const [amountHovered, setAmountHovered] = useState(false);
-  const balanceColor =
-    item.balance > 0
-      ? item.account_type === 'liability'
-        ? Colors.liability
-        : Colors.asset
-      : item.balance < 0
-      ? Colors.liability
-      : colors.text;
+  const balanceColor = getAmountColor(
+    item.balance,
+    item.account_type === 'liability'
+  );
 
   const isParent = hasChildren;
   const indent = item.depth * 20;
@@ -163,7 +152,7 @@ function ReconcileModalBody({
 
   const realBalance = parseFloat(inputValue) || 0;
   const diff = realBalance - account.balance;
-  const diffColor = diff > 0 ? Colors.asset : diff < 0 ? Colors.liability : Colors.neutral;
+  const diffColor = getAmountColor(diff);
   const diffSign = diff > 0 ? '+' : '';
 
   const handleSubmit = () => {
@@ -306,7 +295,7 @@ function EquitySectionCard({ data, colors }: { data: BalanceSheetResponse; color
           <Text
             style={[
               styles.amount,
-              { color: data.net_income >= 0 ? Colors.asset : Colors.liability },
+              { color: getAmountColor(data.net_income) },
             ]}
           >
             {formatMoney(data.net_income)}
@@ -324,6 +313,7 @@ function EquitySectionCard({ data, colors }: { data: BalanceSheetResponse; color
 }
 
 export default function BalanceSheetTable({ data, onRefresh, editable }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const { isDesktop, isMobile } = useBreakpoint();
@@ -366,8 +356,7 @@ export default function BalanceSheetTable({ data, onRefresh, editable }: Props) 
       if (res.status === 'balanced') {
         showToast('余额一致，无需调节', 'success');
       } else {
-        const diffStr = Math.abs(res.difference).toFixed(2);
-        showToast(`已生成调节分录：¥${diffStr}`, 'success');
+        showToast(`已生成调节分录：${formatMoney(Math.abs(res.difference))}`, 'success');
       }
       onRefresh?.();
     } catch {
@@ -386,7 +375,7 @@ export default function BalanceSheetTable({ data, onRefresh, editable }: Props) 
           items={data.assets}
           totalLabel="资产合计"
           totalAmount={data.total_asset}
-          totalColor={Colors.asset}
+          totalColor={getAmountColor(data.total_asset)}
           colors={colors}
           editable={editable}
           onEdit={handleEdit}
@@ -404,7 +393,7 @@ export default function BalanceSheetTable({ data, onRefresh, editable }: Props) 
           items={data.liabilities}
           totalLabel="负债合计"
           totalAmount={data.total_liability}
-          totalColor={Colors.liability}
+          totalColor={getAmountColor(data.total_liability, true)}
           colors={colors}
           editable={editable}
           onEdit={handleEdit}
@@ -457,13 +446,13 @@ export default function BalanceSheetTable({ data, onRefresh, editable }: Props) 
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>总资产</Text>
-            <Text style={[styles.summaryValue, { color: Colors.asset }]}>
+            <Text style={[styles.summaryValue, { color: getAmountColor(data.total_asset) }]}>
               {formatMoney(data.total_asset)}
             </Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>总负债</Text>
-            <Text style={[styles.summaryValue, { color: Colors.liability }]}>
+            <Text style={[styles.summaryValue, { color: getAmountColor(data.total_liability, true) }]}>
               {formatMoney(data.total_liability)}
             </Text>
           </View>
@@ -480,7 +469,7 @@ export default function BalanceSheetTable({ data, onRefresh, editable }: Props) 
             <Text
               style={[
                 styles.summaryValue,
-                { color: data.net_income >= 0 ? Colors.asset : Colors.liability },
+                { color: getAmountColor(data.net_income) },
               ]}
             >
               {formatMoney(data.net_income)}
@@ -504,9 +493,9 @@ export default function BalanceSheetTable({ data, onRefresh, editable }: Props) 
       <View style={[styles.equationCard, { backgroundColor: colors.card }]}>
         <Text style={[styles.equationText, { color: colors.text }]}>
           资产{' '}
-          <Text style={{ color: Colors.asset }}>{formatMoney(data.total_asset)}</Text>
+          <Text style={{ color: getAmountColor(data.total_asset) }}>{formatMoney(data.total_asset)}</Text>
           {' = 负债 '}
-          <Text style={{ color: Colors.liability }}>{formatMoney(data.total_liability)}</Text>
+          <Text style={{ color: getAmountColor(data.total_liability, true) }}>{formatMoney(data.total_liability)}</Text>
           {' + 净资产 '}
           <Text style={{ color: Colors.primary }}>{formatMoney(data.adjusted_equity)}</Text>
         </Text>

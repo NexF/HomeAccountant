@@ -19,6 +19,9 @@ import AccountPicker from '@/features/entry/AccountPicker';
 import type { AccountTreeNode } from '@/services/accountService';
 import type { AccountType } from '@/stores/accountStore';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 
 function todayStr() {
   const d = new Date();
@@ -62,6 +65,7 @@ export type NewLoanScreenProps = {
 };
 
 export default function NewLoanScreen({ onClose }: NewLoanScreenProps = {}) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -108,9 +112,9 @@ export default function NewLoanScreen({ onClose }: NewLoanScreenProps = {}) {
     const mp = calcMonthlyPayment(p, r, m, method);
     const ti = calcTotalInterest(p, r, m, method);
     return {
-      monthlyPayment: mp.toFixed(2),
-      totalInterest: ti.toFixed(2),
-      totalRepayment: (p + ti).toFixed(2),
+      monthlyPayment: formatMoney(mp),
+      totalInterest: formatMoney(ti),
+      totalRepayment: formatMoney(p + ti),
     };
   }, [principal, annualRate, totalMonths, method]);
 
@@ -164,17 +168,20 @@ export default function NewLoanScreen({ onClose }: NewLoanScreenProps = {}) {
             <FontAwesome name="chevron-left" size={18} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>新建贷款</Text>
-          <Pressable
-            onPress={handleSubmit}
-            style={[styles.submitBtn, { backgroundColor: Colors.primary, opacity: submitting ? 0.6 : 1 }]}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <Text style={styles.submitText}>保存</Text>
-            )}
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <PrivacyToggle color={colors.textSecondary} />
+            <Pressable
+              onPress={handleSubmit}
+              style={[styles.submitBtn, { backgroundColor: Colors.primary, opacity: submitting ? 0.6 : 1 }]}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Text style={styles.submitText}>保存</Text>
+              )}
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
@@ -313,18 +320,18 @@ export default function NewLoanScreen({ onClose }: NewLoanScreenProps = {}) {
                   {method === 'equal_installment' ? '每月月供' : '首月月供'}
                 </Text>
                 <Text style={[styles.previewValue, { color: Colors.primary }]}>
-                  ¥{preview.monthlyPayment}
+                  {preview.monthlyPayment}
                 </Text>
               </View>
               <View style={styles.previewRow}>
                 <Text style={[styles.previewLabel, { color: colors.textSecondary }]}>利息总额</Text>
                 <Text style={[styles.previewValue, { color: Colors.asset }]}>
-                  ¥{preview.totalInterest}
+                  {preview.totalInterest}
                 </Text>
               </View>
               <View style={styles.previewRow}>
                 <Text style={[styles.previewLabel, { color: colors.textSecondary }]}>还款总额</Text>
-                <Text style={styles.previewValue}>¥{preview.totalRepayment}</Text>
+                <Text style={styles.previewValue}>{preview.totalRepayment}</Text>
               </View>
             </View>
           )}

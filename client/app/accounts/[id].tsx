@@ -13,6 +13,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 import { useAccountStore, ACCOUNT_TYPE_LABELS, type AccountType } from '@/stores/accountStore';
 import { accountService, type AccountTreeNode, type CreateAccountParams } from '@/services/accountService';
 import { useBookStore } from '@/stores/bookStore';
@@ -33,6 +36,7 @@ function findNodeById(nodes: AccountTreeNode[], id: string): AccountTreeNode | n
 }
 
 export default function AccountDetailScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -124,8 +128,7 @@ export default function AccountDetailScreen() {
       if (data.status === 'balanced') {
         showToast('成功', '余额一致，无需调节');
       } else {
-        const diffStr = Math.abs(data.difference).toFixed(2);
-        showToast('成功', `已生成调节分录：¥${diffStr}`);
+        showToast('成功', `已生成调节分录：${formatMoney(Math.abs(data.difference))}`);
       }
     } catch {
       showToast('错误', '提交失败');
@@ -203,8 +206,8 @@ export default function AccountDetailScreen() {
           <FontAwesome name="arrow-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>科目详情</Text>
-        <View style={{ width: 36 }} />
-      </View>
+  <PrivacyToggle color={colors.textSecondary} />
+</View>
 
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
         {/* Info Card */}

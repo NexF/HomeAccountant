@@ -9,6 +9,8 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { AccountPicker } from '@/features/entry';
 import {
   importService,
@@ -32,6 +34,7 @@ const DIRECTION_COLOR: Record<string, string> = {
 };
 
 export default function ImportPreview({ bookId, data, onDone, onCancel }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
@@ -208,16 +211,16 @@ export default function ImportPreview({ bookId, data, onDone, onCancel }: Props)
       <View style={[s.summary, { backgroundColor: colors.card }]}>
         <View style={s.summaryRow}>
           <Text style={[s.summaryLabel, { color: '#EF4444' }]}>支出 {data.summary.expense_count} 笔</Text>
-          <Text style={[s.summaryValue, { color: '#EF4444' }]}>¥{Number(data.summary.expense_total).toFixed(2)}</Text>
+          <Text style={[s.summaryValue, { color: '#EF4444' }]}>{formatMoney(Number(data.summary.expense_total))}</Text>
         </View>
         <View style={s.summaryRow}>
           <Text style={[s.summaryLabel, { color: '#10B981' }]}>收入 {data.summary.income_count} 笔</Text>
-          <Text style={[s.summaryValue, { color: '#10B981' }]}>¥{Number(data.summary.income_total).toFixed(2)}</Text>
+          <Text style={[s.summaryValue, { color: '#10B981' }]}>{formatMoney(Number(data.summary.income_total))}</Text>
         </View>
         {data.summary.neutral_count > 0 && (
           <View style={s.summaryRow}>
             <Text style={[s.summaryLabel, { color: '#6B7280' }]}>中性 {data.summary.neutral_count} 笔</Text>
-            <Text style={[s.summaryValue, { color: '#6B7280' }]}>¥{Number(data.summary.neutral_total).toFixed(2)}</Text>
+            <Text style={[s.summaryValue, { color: '#6B7280' }]}>{formatMoney(Number(data.summary.neutral_total))}</Text>
           </View>
         )}
         {data.summary.duplicate_count > 0 && (
@@ -284,7 +287,7 @@ export default function ImportPreview({ bookId, data, onDone, onCancel }: Props)
                     ]}
                   >
                     {row.direction === '收入' ? '+' : row.direction === '支出' ? '-' : ''}
-                    ¥{Number(row.amount).toFixed(2)}
+                    {formatMoney(Number(row.amount))}
                   </Text>
                 </View>
                 <View style={s.rowBottom}>

@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text, TextInput, View } from '@/components/Themed';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
@@ -63,6 +65,7 @@ type CategoryData = AccountCategory & {
 /* ─── component ─── */
 
 export default function MyAccountsPane() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const currentBook = useBookStore((s) => s.currentBook);
@@ -178,16 +181,6 @@ export default function MyAccountsPane() {
     }
   };
 
-  // 格式化金额
-  const fmt = (val: number) => {
-    const abs = Math.abs(val);
-    const str = abs.toLocaleString('zh-CN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    return val < 0 ? `-¥${str}` : `¥${str}`;
-  };
-
   const balanceColor = (cat: AccountCategory, val: number) => {
     if (val === 0) return colors.textSecondary;
     return cat.accountType === 'liability' ? Colors.liability : Colors.asset;
@@ -278,7 +271,7 @@ export default function MyAccountsPane() {
                     { color: balanceColor(cat, cat.subtotal) },
                   ]}
                 >
-                  {fmt(cat.subtotal)}
+                  {formatMoney(cat.subtotal)}
                 </Text>
                 <FontAwesome
                   name={collapsed[cat.key] ? 'caret-right' : 'caret-down'}
@@ -310,7 +303,7 @@ export default function MyAccountsPane() {
                           { color: balanceColor(cat, a.balance) },
                         ]}
                       >
-                        {fmt(a.balance)}
+                        {formatMoney(a.balance)}
                       </Text>
                     </View>
                   ))}

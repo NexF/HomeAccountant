@@ -3,6 +3,8 @@ import { StyleSheet, Pressable } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { loanService, type LoanSummary, type LoanResponse } from '@/services/loanService';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
@@ -12,6 +14,7 @@ type Props = {
 };
 
 export default function LoanOverview({ bookId, onPress }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
@@ -69,13 +72,13 @@ export default function LoanOverview({ bookId, onPress }: Props) {
         <View style={styles.stat}>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>剩余本金</Text>
           <Text style={[styles.statValue, { color: Colors.liability }]}>
-            ¥{summary.total_remaining.toLocaleString()}
+            {formatMoney(summary.total_remaining)}
           </Text>
         </View>
         <View style={styles.stat}>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>本月应还</Text>
           <Text style={[styles.statValue, { color: colors.text }]}>
-            ¥{monthlyTotal.toFixed(2)}
+            {formatMoney(monthlyTotal)}
           </Text>
         </View>
         <View style={styles.stat}>
@@ -92,7 +95,7 @@ export default function LoanOverview({ bookId, onPress }: Props) {
           已还本金 {repaidPct}%
         </Text>
         <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
-          已付利息 ¥{summary.total_interest_paid.toLocaleString()}
+          已付利息 {formatMoney(summary.total_interest_paid)}
         </Text>
       </View>
       <View style={[styles.track, { backgroundColor: colors.border }]}>

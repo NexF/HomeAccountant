@@ -4,6 +4,8 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoneyWithSign, getAmountColor } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 
 const TYPE_META: Record<
   string,
@@ -20,14 +22,6 @@ const TYPE_META: Record<
   manual: { label: '手动', icon: 'pencil', color: Colors.neutral },
 };
 
-function fmtImpact(n: number): string {
-  const abs = Math.abs(n);
-  const s = abs.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (n > 0) return `+¥${s}`;
-  if (n < 0) return `-¥${s}`;
-  return `¥${s}`;
-}
-
 type Props = {
   entry: {
     entry_type: string;
@@ -39,12 +33,13 @@ type Props = {
 };
 
 export default function EntryCard({ entry, onPress }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const meta = TYPE_META[entry.entry_type] ?? TYPE_META.manual;
 
   const impact = entry.net_worth_impact ?? 0;
-  const impactColor = impact > 0 ? Colors.asset : impact < 0 ? Colors.liability : colors.textSecondary;
+  const impactColor = getAmountColor(impact);
 
   // 从 entry_date 提取时间 HH:mm，旧数据 00:00 显示为 --:--
   const time = entry.entry_date ? entry.entry_date.slice(11, 16) : '';
@@ -76,7 +71,7 @@ export default function EntryCard({ entry, onPress }: Props) {
 
       {/* 右侧：净资产影响金额 */}
       <View style={styles.right}>
-        <Text style={[styles.impact, { color: impactColor }]}>{fmtImpact(impact)}</Text>
+        <Text style={[styles.impact, { color: impactColor }]}>{formatMoneyWithSign(impact)}</Text>
       </View>
     </Wrapper>
   );

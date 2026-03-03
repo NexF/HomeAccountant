@@ -24,6 +24,9 @@ import { ImportHistory } from '@/features/import';
 import ImportFilterBar from '@/features/import/ImportFilterBar';
 import { AccountPicker } from '@/features/entry';
 import type { AccountTreeNode } from '@/services/accountService';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 
 const DIRECTION_COLOR: Record<string, string> = {
   '支出': '#EF4444',
@@ -32,6 +35,7 @@ const DIRECTION_COLOR: Record<string, string> = {
 };
 
 export default function DataImportScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -237,29 +241,32 @@ export default function DataImportScreen() {
           <Text style={[s.headerTitle, { color: colors.text }]}>
             预览（{uploadResult.total_rows} 行，已导入 {totalImported}）
           </Text>
-          {totalImported > 0 ? (
-            <Pressable onPress={() => { setUploadResult(null); loadHistory(); }} style={s.backBtn}>
-              <Text style={{ fontSize: 14, color: Colors.primary, fontWeight: '600' }}>完成</Text>
-            </Pressable>
-          ) : (
-            <View style={{ width: 40 }} />
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <PrivacyToggle color={colors.textSecondary} />
+            {totalImported > 0 ? (
+              <Pressable onPress={() => { setUploadResult(null); loadHistory(); }} style={s.backBtn}>
+                <Text style={{ fontSize: 14, color: Colors.primary, fontWeight: '600' }}>完成</Text>
+              </Pressable>
+            ) : (
+              <View style={{ width: 40 }} />
+            )}
+          </View>
         </View>
 
         {/* Summary */}
         <View style={[s.summary, { backgroundColor: colors.card }]}>
           <View style={s.summaryRow}>
             <Text style={[s.summaryLabel, { color: '#EF4444' }]}>支出 {uploadResult.summary.expense_count} 笔</Text>
-            <Text style={[s.summaryValue, { color: '#EF4444' }]}>¥{Number(uploadResult.summary.expense_total).toFixed(2)}</Text>
+            <Text style={[s.summaryValue, { color: '#EF4444' }]}>{formatMoney(Number(uploadResult.summary.expense_total))}</Text>
           </View>
           <View style={s.summaryRow}>
             <Text style={[s.summaryLabel, { color: '#10B981' }]}>收入 {uploadResult.summary.income_count} 笔</Text>
-            <Text style={[s.summaryValue, { color: '#10B981' }]}>¥{Number(uploadResult.summary.income_total).toFixed(2)}</Text>
+            <Text style={[s.summaryValue, { color: '#10B981' }]}>{formatMoney(Number(uploadResult.summary.income_total))}</Text>
           </View>
           {uploadResult.summary.neutral_count > 0 && (
             <View style={s.summaryRow}>
               <Text style={[s.summaryLabel, { color: '#6B7280' }]}>中性 {uploadResult.summary.neutral_count} 笔</Text>
-              <Text style={[s.summaryValue, { color: '#6B7280' }]}>¥{Number(uploadResult.summary.neutral_total).toFixed(2)}</Text>
+              <Text style={[s.summaryValue, { color: '#6B7280' }]}>{formatMoney(Number(uploadResult.summary.neutral_total))}</Text>
             </View>
           )}
           {uploadResult.summary.duplicate_count > 0 && (
@@ -310,7 +317,7 @@ export default function DataImportScreen() {
                     <Text style={[s.rowDesc, { color: colors.text }]} numberOfLines={1}>{row.description}</Text>
                     <Text style={[s.rowAmount, { color: dirColor }]}>
                       {row.direction === '收入' ? '+' : row.direction === '支出' ? '-' : ''}
-                      ¥{Number(row.amount).toFixed(2)}
+                      {formatMoney(Number(row.amount))}
                     </Text>
                   </View>
                   <View style={s.rowBottom}>
@@ -417,7 +424,7 @@ export default function DataImportScreen() {
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={[s.headerTitle, { color: colors.text }]}>数据导入</Text>
-        <View style={{ width: 40 }} />
+        <PrivacyToggle color={colors.textSecondary} />
       </View>
 
       <ScrollView contentContainerStyle={s.content}>

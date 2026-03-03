@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import Sidebar from '@/components/layout/Sidebar';
 import { useAuthStore } from '@/stores/authStore';
 import { useBookStore } from '@/stores/bookStore';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import Colors from '@/constants/Colors';
 
 export { ErrorBoundary } from 'expo-router';
@@ -62,6 +63,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     initialize();
+    usePrivacyStore.getState().loadPrivacySetting();
   }, []);
 
   useEffect(() => {

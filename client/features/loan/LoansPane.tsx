@@ -3,6 +3,8 @@ import { StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal } from 'rea
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import { useLoanStore } from '@/stores/loanStore';
@@ -86,7 +88,7 @@ function LoanDetailInline({
     setRepaying(true);
     try {
       const { data } = await loanService.repay(loan.id, { payment_account_id: paymentAccount.id, interest_account_id: interestAccount?.id });
-      showToast(data.status === 'paid_off' ? '贷款已结清！' : `还款成功，剩余本金 ¥${data.remaining_principal.toFixed(2)}`);
+      showToast(data.status === 'paid_off' ? '贷款已结清！' : `还款成功，剩余本金 ${formatMoney(data.remaining_principal)}`);
       await fetchData();
     } catch (e: any) { showToast(e?.response?.data?.detail ?? '还款失败'); } finally { setRepaying(false); }
   };
@@ -118,10 +120,10 @@ function LoanDetailInline({
       <ScrollView style={{ flex: 1 }}>
         <View style={[styles.formCard, { backgroundColor: colors.card, marginHorizontal: 16, marginBottom: 16, overflow: 'hidden' }]}>
           {([
-            ['贷款名称', loan.name], ['关联科目', loan.account_name], ['贷款本金', `¥ ${loan.principal.toLocaleString()}`],
-            ['剩余本金', `¥ ${loan.remaining_principal.toLocaleString()}`, Colors.primary], ['年利率', `${loan.annual_rate}%`],
-            ['还款方式', LOAN_METHOD_LABEL[loan.repayment_method] ?? loan.repayment_method], ['月供', `¥ ${loan.monthly_payment.toFixed(2)}`],
-            ['利息总额', `¥ ${loan.total_interest.toFixed(2)}`, Colors.asset], ['还款期数', `${loan.total_months} 个月`],
+            ['贷款名称', loan.name], ['关联科目', loan.account_name], ['贷款本金', formatMoney(loan.principal)],
+            ['剩余本金', formatMoney(loan.remaining_principal), Colors.primary], ['年利率', `${loan.annual_rate}%`],
+            ['还款方式', LOAN_METHOD_LABEL[loan.repayment_method] ?? loan.repayment_method], ['月供', formatMoney(loan.monthly_payment)],
+            ['利息总额', formatMoney(loan.total_interest), Colors.asset], ['还款期数', `${loan.total_months} 个月`],
             ['已还期数', `${loan.repaid_months} 期`], ['首次还款', loan.start_date],
             ['状态', isActive ? '还款中' : '已结清', isActive ? Colors.liability : colors.textSecondary],
           ] as [string, string, string?][]).map(([label, value, valueColor]) => (
@@ -206,6 +208,7 @@ function LoanDetailInline({
 /* ──── 贷款列表主面板 ──── */
 
 export default function LoansPane() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const currentBook = useBookStore((s) => s.currentBook);
@@ -244,9 +247,9 @@ export default function LoansPane() {
         {summary && (
           <View style={[styles.formCard, { backgroundColor: colors.card, padding: 16, marginBottom: 12 }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>贷款总额</Text><Text style={{ fontSize: 16, fontWeight: '700' }}>¥{summary.total_principal.toLocaleString()}</Text></View>
-              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>剩余本金</Text><Text style={{ fontSize: 16, fontWeight: '700', color: Colors.primary }}>¥{summary.total_remaining.toLocaleString()}</Text></View>
-              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>已付利息</Text><Text style={{ fontSize: 16, fontWeight: '700', color: Colors.asset }}>¥{summary.total_interest_paid.toLocaleString()}</Text></View>
+              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>贷款总额</Text><Text style={{ fontSize: 16, fontWeight: '700' }}>{formatMoney(summary.total_principal)}</Text></View>
+              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>剩余本金</Text><Text style={{ fontSize: 16, fontWeight: '700', color: Colors.primary }}>{formatMoney(summary.total_remaining)}</Text></View>
+              <View style={{ flex: 1 }}><Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 2 }}>已付利息</Text><Text style={{ fontSize: 16, fontWeight: '700', color: Colors.asset }}>{formatMoney(summary.total_interest_paid)}</Text></View>
             </View>
             <Text style={{ fontSize: 12, color: colors.textSecondary }}>共 {summary.loan_count} 笔贷款，{summary.active_count} 笔还款中</Text>
           </View>
@@ -274,7 +277,7 @@ export default function LoansPane() {
                 <Text style={[styles.acctRowCode, { color: colors.textSecondary }]}>{LOAN_METHOD_LABEL[loan.repayment_method]} · {loan.annual_rate}%</Text>
               </View>
               <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600' }}>¥{loan.remaining_principal.toLocaleString()}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600' }}>{formatMoney(loan.remaining_principal)}</Text>
                 <Text style={{ fontSize: 11, color: colors.textSecondary }}>{loan.repaid_months}/{loan.total_months}期</Text>
               </View>
               <View style={[styles.directionBadge, { backgroundColor: loan.status === 'paid_off' ? colors.textSecondary + '15' : Colors.liability + '15' }]}>

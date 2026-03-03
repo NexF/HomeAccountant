@@ -17,6 +17,9 @@ import { useBookStore } from '@/stores/bookStore';
 import { useLoanStore } from '@/stores/loanStore';
 import type { LoanResponse } from '@/services/loanService';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 
 const STATUS_TABS = [
   { key: null, label: '全部' },
@@ -96,18 +99,18 @@ function LoanCard({ loan, onPress }: { loan: LoanResponse; onPress: (l: LoanResp
       <View style={styles.stats}>
         <View style={styles.statItem}>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>贷款本金</Text>
-          <Text style={styles.statValue}>¥{loan.principal.toLocaleString()}</Text>
+          <Text style={styles.statValue}>{formatMoney(loan.principal)}</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>剩余本金</Text>
           <Text style={[styles.statValue, { color: Colors.primary }]}>
-            ¥{loan.remaining_principal.toLocaleString()}
+            {formatMoney(loan.remaining_principal)}
           </Text>
         </View>
         <View style={styles.statItem}>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>月供</Text>
           <Text style={[styles.statValue, { color: Colors.asset }]}>
-            ¥{loan.monthly_payment.toFixed(2)}
+            {formatMoney(loan.monthly_payment)}
           </Text>
         </View>
       </View>
@@ -116,6 +119,7 @@ function LoanCard({ loan, onPress }: { loan: LoanResponse; onPress: (l: LoanResp
 }
 
 export default function LoanListScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -156,16 +160,19 @@ export default function LoanListScreen() {
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>贷款管理</Text>
-        {isAdmin ? (
-          <Pressable
-            style={[styles.addBtn, { backgroundColor: Colors.primary }]}
-            onPress={() => router.push('/loans/new' as any)}
-          >
-            <FontAwesome name="plus" size={14} color="#FFF" />
-          </Pressable>
-        ) : (
-          <View style={styles.headerBtn} />
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <PrivacyToggle color={colors.textSecondary} />
+          {isAdmin ? (
+            <Pressable
+              style={[styles.addBtn, { backgroundColor: Colors.primary }]}
+              onPress={() => router.push('/loans/new' as any)}
+            >
+              <FontAwesome name="plus" size={14} color="#FFF" />
+            </Pressable>
+          ) : (
+            <View style={styles.headerBtn} />
+          )}
+        </View>
       </View>
 
       {/* Summary */}
@@ -174,18 +181,18 @@ export default function LoanListScreen() {
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>贷款总额</Text>
-              <Text style={styles.summaryValue}>¥{summary.total_principal.toLocaleString()}</Text>
+              <Text style={styles.summaryValue}>{formatMoney(summary.total_principal)}</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>剩余本金</Text>
               <Text style={[styles.summaryValue, { color: Colors.primary }]}>
-                ¥{summary.total_remaining.toLocaleString()}
+                {formatMoney(summary.total_remaining)}
               </Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>已付利息</Text>
               <Text style={[styles.summaryValue, { color: Colors.asset }]}>
-                ¥{summary.total_interest_paid.toLocaleString()}
+                {formatMoney(summary.total_interest_paid)}
               </Text>
             </View>
           </View>

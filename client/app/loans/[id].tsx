@@ -25,6 +25,9 @@ import RepaymentSchedule from '@/features/loan/RepaymentSchedule';
 import AccountPicker from '@/features/entry/AccountPicker';
 import { accountService, type AccountTreeNode } from '@/services/accountService';
 import type { AccountType } from '@/stores/accountStore';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 
 const METHOD_LABEL: Record<string, string> = {
   equal_installment: '等额本息',
@@ -51,6 +54,7 @@ function InfoRow({
 }
 
 export default function LoanDetailScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -130,7 +134,7 @@ export default function LoanDetailScreen() {
       });
       const msg = data.status === 'paid_off'
         ? '贷款已结清！'
-        : `还款成功，剩余本金 ¥${data.remaining_principal.toFixed(2)}`;
+        : `还款成功，剩余本金 ${formatMoney(data.remaining_principal)}`;
       showToast('成功', msg);
       await fetchData();
     } catch (e: any) {
@@ -187,13 +191,16 @@ export default function LoanDetailScreen() {
           <FontAwesome name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{loan.name}</Text>
-        {isAdmin ? (
-          <Pressable onPress={handleDelete} style={styles.headerBtn}>
-            <FontAwesome name="trash-o" size={18} color={Colors.asset} />
-          </Pressable>
-        ) : (
-          <View style={styles.headerBtn} />
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <PrivacyToggle color={colors.textSecondary} />
+          {isAdmin ? (
+            <Pressable onPress={handleDelete} style={styles.headerBtn}>
+              <FontAwesome name="trash-o" size={18} color={Colors.asset} />
+            </Pressable>
+          ) : (
+            <View style={styles.headerBtn} />
+          )}
+        </View>
       </View>
 
       <ScrollView style={styles.scroll}>
@@ -201,10 +208,10 @@ export default function LoanDetailScreen() {
         <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
           <InfoRow label="贷款名称" value={loan.name} colors={colors} />
           <InfoRow label="关联科目" value={loan.account_name} colors={colors} />
-          <InfoRow label="贷款本金" value={`¥ ${loan.principal.toLocaleString()}`} colors={colors} />
+          <InfoRow label="贷款本金" value={formatMoney(loan.principal)} colors={colors} />
           <InfoRow
             label="剩余本金"
-            value={`¥ ${loan.remaining_principal.toLocaleString()}`}
+            value={formatMoney(loan.remaining_principal)}
             colors={colors}
             valueColor={Colors.primary}
           />
@@ -214,10 +221,10 @@ export default function LoanDetailScreen() {
             value={METHOD_LABEL[loan.repayment_method] ?? loan.repayment_method}
             colors={colors}
           />
-          <InfoRow label="月供" value={`¥ ${loan.monthly_payment.toFixed(2)}`} colors={colors} />
+          <InfoRow label="月供" value={formatMoney(loan.monthly_payment)} colors={colors} />
           <InfoRow
             label="利息总额"
-            value={`¥ ${loan.total_interest.toFixed(2)}`}
+            value={formatMoney(loan.total_interest)}
             colors={colors}
             valueColor={Colors.asset}
           />

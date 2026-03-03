@@ -3,6 +3,8 @@ import { StyleSheet, ScrollView } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import type { RepaymentScheduleItem } from '@/services/loanService';
 
 type Props = {
@@ -10,6 +12,7 @@ type Props = {
 };
 
 export default function RepaymentSchedule({ schedule }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
@@ -49,10 +52,10 @@ export default function RepaymentSchedule({ schedule }: Props) {
             >
               <Text style={[styles.cell, styles.cellPeriod, { color: colors.text }]}>{item.period}</Text>
               <Text style={[styles.cell, styles.cellDate, { color: colors.text }]}>{item.payment_date}</Text>
-              <Text style={[styles.cell, styles.cellAmount, { color: colors.text }]}>¥{item.payment.toFixed(2)}</Text>
-              <Text style={[styles.cell, styles.cellAmount, { color: Colors.primary }]}>¥{item.principal.toFixed(2)}</Text>
-              <Text style={[styles.cell, styles.cellAmount, { color: Colors.asset }]}>¥{item.interest.toFixed(2)}</Text>
-              <Text style={[styles.cell, styles.cellAmount, { color: colors.text }]}>¥{item.remaining.toFixed(2)}</Text>
+              <Text style={[styles.cell, styles.cellAmount, { color: colors.text }]}>{formatMoney(item.payment)}</Text>
+              <Text style={[styles.cell, styles.cellAmount, { color: Colors.primary }]}>{formatMoney(item.principal)}</Text>
+              <Text style={[styles.cell, styles.cellAmount, { color: Colors.asset }]}>{formatMoney(item.interest)}</Text>
+              <Text style={[styles.cell, styles.cellAmount, { color: colors.text }]}>{formatMoney(item.remaining)}</Text>
               <View style={styles.cellStatus}>
                 <View
                   style={[

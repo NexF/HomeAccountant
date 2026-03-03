@@ -3,6 +3,8 @@ import { StyleSheet, Pressable } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import type { BudgetResponse } from '@/services/budgetService';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -18,6 +20,7 @@ type Props = {
 };
 
 export default function BudgetCard({ budget, onPress, onLongPress }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const statusColor = STATUS_COLORS[budget.status] ?? colors.textSecondary;
@@ -38,7 +41,7 @@ export default function BudgetCard({ budget, onPress, onLongPress }: Props) {
             预算额度
           </Text>
           <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>
-            ¥{budget.amount.toLocaleString()}
+            {formatMoney(budget.amount)}
           </Text>
         </View>
         <View style={{ flex: 1, backgroundColor: 'transparent' }}>
@@ -46,7 +49,7 @@ export default function BudgetCard({ budget, onPress, onLongPress }: Props) {
             本月已用
           </Text>
           <Text style={{ fontSize: 20, fontWeight: '700', color: statusColor }}>
-            ¥{budget.used_amount.toLocaleString()}
+            {formatMoney(budget.used_amount)}
           </Text>
         </View>
         <Text style={{ fontSize: 16, fontWeight: '700', color: statusColor }}>

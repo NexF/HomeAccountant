@@ -3,6 +3,8 @@ import { StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal } from 'rea
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useBookStore } from '@/stores/bookStore';
 import {
@@ -232,7 +234,7 @@ function AccountDetailInline({
       if (data.status === 'balanced') {
         showToast('余额一致，无需调节');
       } else {
-        showToast(`已生成调节分录：¥${Math.abs(data.difference).toFixed(2)}`);
+        showToast(`已生成调节分录：${formatMoney(Math.abs(data.difference))}`);
       }
     } catch {
       showToast('提交失败');
@@ -568,6 +570,7 @@ function AccountDetailInline({
 }
 
 export default function AccountsPane() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const { currentBook, fetchBooks } = useBookStore();

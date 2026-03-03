@@ -10,6 +10,7 @@ import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { BookSwitcher, CreateBookModal } from '@/features/book';
 import { useBookStore } from '@/stores/bookStore';
 import type { BookResponse } from '@/services/bookService';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
@@ -19,8 +20,11 @@ function TabBarIcon(props: {
 }
 
 function HeaderBookSwitcher({ onCreateBook, onOpenSettings }: { onCreateBook: () => void; onOpenSettings: () => void }) {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
   return (
     <View style={headerStyles.rightContainer}>
+      <PrivacyToggle color={colors.textSecondary} />
       <BookSwitcher
         onCreateBook={onCreateBook}
         onOpenSettings={onOpenSettings}
@@ -121,6 +125,9 @@ export default function TabLayout() {
 
 const headerStyles = StyleSheet.create({
   rightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginRight: 12,
   },
 });

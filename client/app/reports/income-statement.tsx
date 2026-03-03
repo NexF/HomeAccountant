@@ -11,6 +11,8 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { usePrivacyStore } from '@/stores/privacyStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
 import { useBookStore } from '@/stores/bookStore';
 import { reportService, type IncomeStatementResponse } from '@/services/reportService';
 import IncomeStatementTable from '@/features/report/IncomeStatementTable';
@@ -28,6 +30,7 @@ function getMonthRange(): { start: string; end: string } {
 }
 
 export default function IncomeStatementScreen() {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const router = useRouter();
@@ -82,7 +85,7 @@ export default function IncomeStatementScreen() {
           <FontAwesome name="chevron-left" size={16} color={colors.text} />
         </Pressable>
         <Text style={[styles.title, { color: colors.text }]}>损益表</Text>
-        <View style={{ width: 32 }} />
+        <PrivacyToggle color={colors.textSecondary} />
       </View>
 
       {/* 日期范围选择器 */}

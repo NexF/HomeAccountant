@@ -3,6 +3,8 @@ import { StyleSheet } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import type { DepreciationRecord } from '@/services/assetService';
 
 type Props = {
@@ -11,6 +13,7 @@ type Props = {
 };
 
 export default function DepreciationChart({ records, originalCost }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
@@ -52,7 +55,7 @@ export default function DepreciationChart({ records, originalCost }: Props) {
               </View>
             </View>
             <Text style={[styles.amount, { color: colors.text }]}>
-              ¥{record.amount.toFixed(2)}
+              {formatMoney(record.amount)}
             </Text>
           </View>
         );
@@ -64,7 +67,7 @@ export default function DepreciationChart({ records, originalCost }: Props) {
           累计折旧
         </Text>
         <Text style={[styles.summaryValue, { color: Colors.asset }]}>
-          ¥{records[records.length - 1]?.accumulated.toFixed(2) ?? '0.00'}
+          {formatMoney(records[records.length - 1]?.accumulated ?? 0)}
         </Text>
       </View>
       <View style={styles.summaryRow}>
@@ -72,7 +75,7 @@ export default function DepreciationChart({ records, originalCost }: Props) {
           当前净值
         </Text>
         <Text style={[styles.summaryValue, { color: Colors.primary }]}>
-          ¥{records[records.length - 1]?.net_value.toFixed(2) ?? originalCost.toFixed(2)}
+          {formatMoney(records[records.length - 1]?.net_value ?? originalCost)}
         </Text>
       </View>
     </View>

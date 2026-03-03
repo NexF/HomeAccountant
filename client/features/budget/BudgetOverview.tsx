@@ -3,6 +3,8 @@ import { StyleSheet, Pressable } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { formatMoney } from '@/utils/format';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useBudgetStore } from '@/stores/budgetStore';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
@@ -19,6 +21,7 @@ type Props = {
 };
 
 export default function BudgetOverview({ bookId, onPress }: Props) {
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const { overview, fetchOverview } = useBudgetStore();
@@ -53,10 +56,10 @@ export default function BudgetOverview({ bookId, onPress }: Props) {
 
       <View style={styles.amounts}>
         <Text style={[styles.used, { color: colors.text }]}>
-          ¥{overview.total_used.toLocaleString()}
+          {formatMoney(overview.total_used)}
         </Text>
         <Text style={[styles.total, { color: colors.textSecondary }]}>
-          {' '}/ ¥{(overview.total_budget ?? 0).toLocaleString()}
+          {' '}/ {formatMoney(overview.total_budget ?? 0)}
         </Text>
         <Text style={[styles.pctText, { color: statusColor }]}>
           {Math.round((overview.total_usage_rate ?? 0) * 100)}%

@@ -80,12 +80,20 @@ CONFIG_SCHEMA = {
             "description": "收入时的默认收入科目",
         },
         {
-            "key": "adjust_account_id",
-            "label": "调账科目",
+            "key": "adjust_income_account_id",
+            "label": "调账科目（余额增加）",
             "type": "account_select",
             "required": False,
             "depends_on": "target_book",
-            "description": "余额差异时使用的调账科目（留空则自动创建）",
+            "description": "实际余额 > 账面余额时使用的调账科目（如其他收入），留空则使用系统默认",
+        },
+        {
+            "key": "adjust_expense_account_id",
+            "label": "调账科目（余额减少）",
+            "type": "account_select",
+            "required": False,
+            "depends_on": "target_book",
+            "description": "实际余额 < 账面余额时使用的调账科目（如其他费用），留空则使用系统默认",
         },
         {
             "key": "sync_balance",
@@ -272,6 +280,8 @@ class HAClient:
     def submit_balance_snapshot(
         self, account_id: str, external_balance: float, snapshot_date: str,
         adjust_account_id: str | None = None,
+        adjust_income_account_id: str | None = None,
+        adjust_expense_account_id: str | None = None,
     ) -> dict:
         body: dict = {
             "external_balance": external_balance,
@@ -279,6 +289,10 @@ class HAClient:
         }
         if adjust_account_id:
             body["adjust_account_id"] = adjust_account_id
+        if adjust_income_account_id:
+            body["adjust_income_account_id"] = adjust_income_account_id
+        if adjust_expense_account_id:
+            body["adjust_expense_account_id"] = adjust_expense_account_id
         resp = self.session.post(
             f"{self.base_url}/accounts/{account_id}/snapshot",
             json=body,
@@ -537,12 +551,14 @@ def run_plugin(args):
                     deposit_account_id = _resolve_account(plugin_config, "deposit_account_id", bid)
                     if not deposit_account_id:
                         continue
-                    adjust_id = _resolve_account(plugin_config, "adjust_account_id", bid) if plugin_config.get("adjust_account_id") else None
+                    adjust_income_id = _resolve_account(plugin_config, "adjust_income_account_id", bid) if plugin_config.get("adjust_income_account_id") else None
+                    adjust_expense_id = _resolve_account(plugin_config, "adjust_expense_account_id", bid) if plugin_config.get("adjust_expense_account_id") else None
                     latest_balance, latest_date = tasks[-1]
                     try:
                         snap_result = client.submit_balance_snapshot(
                             deposit_account_id, latest_balance, latest_date,
-                            adjust_account_id=adjust_id,
+                            adjust_income_account_id=adjust_income_id,
+                            adjust_expense_account_id=adjust_expense_id,
                         )
                         logger.info(
                             "余额快照 [book=%s]: balance=%.2f, status=%s, diff=%s",

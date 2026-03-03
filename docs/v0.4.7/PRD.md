@@ -47,7 +47,8 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 
 | 场景 | 调账科目来源 | 说明 |
 |------|-------------|------|
-| 插件余额同步（已配置调账科目） | 插件 `config_schema` 中的 `adjust_account_id` 字段 | 用户在插件配置中选择，如"投资收益" |
+| 证券类插件余额同步（已配置） | 插件 `config_schema` 中的 `adjust_account_id` 字段 | 单一科目，盈亏都记到同一损益科目（如"投资收益"），方向不同 |
+| 银行类插件余额同步（已配置） | 插件 `config_schema` 中的 `adjust_income_account_id` + `adjust_expense_account_id` | 分方向配置：余额增加用收入科目，余额减少用费用科目 |
 | 插件余额同步（未配置调账科目） | 系统默认科目：差异 > 0 用"其他收入"，差异 < 0 用"其他费用" | 回退到与手动对账相同的逻辑 |
 | 用户手动对账（科目详情页/资产负债表） | 系统默认科目：差异 > 0 用"其他收入"，差异 < 0 用"其他费用" | 用户无需选择，一步完成 |
 
@@ -72,25 +73,38 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 
 **微信银行监控插件**（银行类）：
 
+银行类插件按盈亏方向拆分为两个调账科目字段，因为银行账户的差异增加（如利息收入）和差异减少（如漏记支出）在会计上应归入不同科目：
+
 ```json
 {
-  "key": "adjust_account_id",
-  "label": "调账科目",
+  "key": "adjust_income_account_id",
+  "label": "调账科目（余额增加）",
   "type": "account_select",
   "required": false,
   "depends_on": "target_book",
-  "description": "余额差异自动调账的目标科目（如其他收入/费用），不设则使用系统默认科目（其他收入/其他费用）"
+  "description": "实际余额 > 账面余额时使用的调账科目（如其他收入），留空则使用系统默认"
 }
 ```
 
-> 所有具备余额同步功能的插件都应提供 `adjust_account_id` 配置字段。不设置时回退到系统默认科目（差异 > 0 用"其他收入"，差异 < 0 用"其他费用"），确保余额快照有差异时**一定会生成调账分录**，让账面余额与实际余额保持一致。
+```json
+{
+  "key": "adjust_expense_account_id",
+  "label": "调账科目（余额减少）",
+  "type": "account_select",
+  "required": false,
+  "depends_on": "target_book",
+  "description": "实际余额 < 账面余额时使用的调账科目（如其他费用），留空则使用系统默认"
+}
+```
+
+> 所有具备余额同步功能的插件都应提供调账科目配置字段：证券类使用单一 `adjust_account_id`（损益科目天然双向），银行类使用 `adjust_income_account_id` + `adjust_expense_account_id`（分方向配置更严谨）。不设置时回退到系统默认科目（差异 > 0 用"其他收入"，差异 < 0 用"其他费用"），确保余额快照有差异时**一定会生成调账分录**，让账面余额与实际余额保持一致。
 
 #### 2.3.2 调账科目的语义
 
 | 插件类型 | 推荐调账科目 | 会计含义 |
 |----------|-------------|---------|
-| 证券类（东财/长桥） | 投资收益（收入科目） | 股价波动带来的浮盈浮亏 |
-| 银行类（微信银行监控） | 其他收入 / 其他费用 | 差异可能是漏记交易或利息等，用户后续可补记并冲销 |
+| 证券类（东财/长桥） | `adjust_account_id` → 投资收益（收入科目） | 股价波动带来的浮盈浮亏，单一科目双向记录 |
+| 银行类（微信银行监控） | `adjust_income_account_id` → 其他收入；`adjust_expense_account_id` → 其他费用 | 差异增减含义不同（利息 vs 漏记支出），分方向配置 |
 
 #### 2.3.3 多账本模式适配
 
@@ -100,7 +114,7 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 
 当余额快照检测到差异（`|difference| >= 0.01`）：
 
-#### 2.4.1 插件触发（有调账科目配置时）
+#### 2.4.1 插件触发（证券类，有 `adjust_account_id` 配置时）
 
 - 差异 > 0（实际 > 账面，如投资浮盈）：
   - 借：目标资产科目（如"长桥证券"）
@@ -108,6 +122,16 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 - 差异 < 0（实际 < 账面，如投资浮亏）：
   - 借：调账科目（如"投资收益"，反向冲减）
   - 贷：目标资产科目（如"长桥证券"）
+
+#### 2.4.1b 插件触发（银行类，有 `adjust_income/expense_account_id` 配置时）
+
+- 差异 > 0（实际 > 账面，如利息收入）：
+  - 借：目标资产科目（如"招商银行"）
+  - 贷：`adjust_income_account_id`（如"其他收入"）
+- 差异 < 0（实际 < 账面，如漏记支出）：
+  - 借：`adjust_expense_account_id`（如"其他费用"）
+  - 贷：目标资产科目（如"招商银行"）
+- 优先级：`方向专用科目 > 通用 adjust_account_id > 系统默认`
 - `entry_type` = `"reconciliation"`
 - `reconciliation_status` 不再使用，分录直接生效
 - `source` = `"reconciliation"`
@@ -207,7 +231,31 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 
 ### 5.3 微信银行监控插件
 
-同上，新增 `adjust_account_id` 字段。推荐调账科目为「其他收入」/「其他费用」，用户后续补记漏记交易时可冲销该调节分录。
+银行类插件拆为两个方向专用字段，替代单一 `adjust_account_id`：
+
+新增字段：
+
+```python
+{
+    "key": "adjust_income_account_id",
+    "label": "调账科目（余额增加）",
+    "type": "account_select",
+    "required": False,
+    "depends_on": "target_book",
+    "description": "实际余额 > 账面余额时使用的调账科目（如其他收入），留空则使用系统默认",
+}
+```
+
+```python
+{
+    "key": "adjust_expense_account_id",
+    "label": "调账科目（余额减少）",
+    "type": "account_select",
+    "required": False,
+    "depends_on": "target_book",
+    "description": "实际余额 < 账面余额时使用的调账科目（如其他费用），留空则使用系统默认",
+}
+```
 
 ## 6. 前端变更
 
@@ -273,7 +321,11 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `adjust_account_id` | string (UUID) | ❌ | 调账科目 ID。传入时使用该科目生成调节分录；不传则使用系统默认科目（其他收入/其他费用） |
+| `adjust_account_id` | string (UUID) | ❌ | 通用调账科目 ID（证券类插件用，盈亏都记到同一科目） |
+| `adjust_income_account_id` | string (UUID) | ❌ | 余额增加时的调账科目 ID（银行类插件用） |
+| `adjust_expense_account_id` | string (UUID) | ❌ | 余额减少时的调账科目 ID（银行类插件用） |
+
+**优先级：** `方向专用科目（income/expense）> 通用 adjust_account_id > 系统默认科目`
 
 **处理流程变更：**
 
@@ -282,7 +334,7 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 3. 创建 `BalanceSnapshot` 记录
 4. **新逻辑**：
    - 差异 >= 0.01：
-     - 确定调账科目：`adjust_account_id` 有值则使用，否则回退系统默认科目（差异 > 0 用"其他收入" `4009`，差异 < 0 用"其他费用" `5099`）
+     - 确定调账科目（优先级：方向专用科目 > 通用 `adjust_account_id` > 系统默认科目）
      - 生成已确认的调节分录（`entry_type = "reconciliation"`）
      - 快照 `status` = `"reconciled"`
    - 差异 < 0.01：
@@ -367,7 +419,7 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 | `client/app/accounts/[id].tsx` | 对账区域简化：提交后 Toast 提示，不跳转 |
 | `client/features/account/AccountsPane.tsx` | 同上 |
 | `client/features/report/BalanceSheetTable.tsx` | 对账弹窗简化：提交后 Toast 提示，不跳转 |
-| `client/services/syncService.ts` | `submitSnapshot` 新增可选参数 `adjust_account_id` |
+| `client/services/syncService.ts` | `submitSnapshot` 新增可选参数 `adjust_account_id`、`adjust_income_account_id`、`adjust_expense_account_id` |
 
 ### 9.6 插件端修改
 
@@ -375,7 +427,7 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 |------|------|
 | `plugins/eastmoney_monitor/plugin.py` | CONFIG_SCHEMA 新增 `adjust_account_id`；同步时传入调账科目 |
 | `plugins/longport_monitor/plugin.py` | 同上 |
-| `plugins/wx_bank_monitor/plugin.py` | CONFIG_SCHEMA 新增 `adjust_account_id`；同步时传入调账科目 |
+| `plugins/wx_bank_monitor/plugin.py` | CONFIG_SCHEMA 拆 `adjust_account_id` 为 `adjust_income_account_id` + `adjust_expense_account_id`；同步时按方向传入调账科目 |
 
 ## 10. 验收标准
 
@@ -383,7 +435,7 @@ v0.3 引入了余额快照 + 对账机制：提交余额快照后，如果账面
 |------|--------|---------|
 | RC-1 | 待处理对账删除 | Dashboard 无"待处理对账"入口，`/sync/reconcile` 路由不存在 |
 | RC-2 | 后端 API 清理 | `pending-reconciliations`、`pending-count`、`confirm`、`split` 四个端点返回 404 |
-| RC-3 | 插件调账科目配置 | 所有余额同步插件（东财/长桥/微信银行）配置表单中均显示"调账科目"选择器（多账本下每个分组独立） |
+| RC-3 | 插件调账科目配置 | 证券类插件显示单一"调账科目"选择器；银行类插件显示"调账科目（余额增加）"+"调账科目（余额减少）"两个选择器（多账本下每个分组独立） |
 | RC-4 | 插件自动调账 | 所有插件同步余额时，差异自动生成已确认的调节分录到配置的调账科目 |
 | RC-5 | 无调账科目时回退默认 | 插件未配置调账科目时，使用系统默认科目（其他收入/其他费用）生成调节分录 |
 | RC-6 | 用户手动对账 | 科目详情页输入真实余额后直接生成调节分录，Toast 提示结果 |

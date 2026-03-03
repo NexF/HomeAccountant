@@ -12,13 +12,17 @@ def register(mcp: FastMCP):
         external_balance: float,
         snapshot_date: str = "",
         adjust_account_id: str = "",
+        adjust_income_account_id: str = "",
+        adjust_expense_account_id: str = "",
     ) -> str:
         """提交科目余额快照，系统自动计算差额并生成调节分录。
 
         - account_id: 科目 ID（使用 list_accounts 获取）
         - external_balance: 外部真实余额（数字）
         - snapshot_date: 快照日期 (YYYY-MM-DD)，默认今天
-        - adjust_account_id: 调账科目 ID，不传则使用系统默认科目（其他收入/其他费用）
+        - adjust_account_id: 通用调账科目 ID（证券类插件用，盈亏都记到同一科目）
+        - adjust_income_account_id: 余额增加时的调账科目 ID（银行类插件用）
+        - adjust_expense_account_id: 余额减少时的调账科目 ID（银行类插件用）
 
         使用前请先调用 list_accounts 获取科目 ID。
         """
@@ -29,5 +33,7 @@ def register(mcp: FastMCP):
         result = await ha_client.submit_snapshot(
             account_id, external_balance, snapshot_date,
             adjust_account_id=adjust_account_id or None,
+            adjust_income_account_id=adjust_income_account_id or None,
+            adjust_expense_account_id=adjust_expense_account_id or None,
         )
         return json.dumps(result, ensure_ascii=False, indent=2)

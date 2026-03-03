@@ -8,6 +8,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { BookSwitcher, CreateBookModal } from '@/features/book';
 import { useBookStore } from '@/stores/bookStore';
 import { useProfileNavStore } from '@/stores/profileNavStore';
+import { PrivacyToggle } from '@/components/PrivacyToggle';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import type { BookResponse } from '@/services/bookService';
 
 type NavItem = {
@@ -32,6 +34,7 @@ export default function Sidebar() {
   const [showCreateBookModal, setShowCreateBookModal] = useState(false);
   const { setCurrentBook } = useBookStore();
   const navigateTo = useProfileNavStore((s) => s.navigateTo);
+  const _privacyMode = usePrivacyStore((s) => s.hideAmounts);
 
   const isActive = (item: NavItem) => {
     if (item.key === 'index') return pathname === '/' || pathname === '/(tabs)';
@@ -52,6 +55,7 @@ export default function Sidebar() {
       <View style={styles.logoArea}>
         <FontAwesome name="calculator" size={24} color={Colors.primary} />
         <Text style={[styles.logoText, { color: colors.text }]}>咕咕记账</Text>
+        <PrivacyToggle color={colors.textSecondary} size={18} />
       </View>
 
       {/* 账本切换器 */}
@@ -131,11 +135,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     marginBottom: 8,
+    gap: 12,
   },
   logoText: {
     fontSize: 18,
     fontWeight: '700',
-    marginLeft: 12,
   },
   navList: {
     flex: 1,

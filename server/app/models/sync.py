@@ -65,8 +65,8 @@ class BalanceSnapshot(Base):
     book_balance: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False)
     difference: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False)
     status: Mapped[str] = mapped_column(
-        SAEnum("balanced", "pending", "reconciled", name="snapshot_status"),
-        default="pending",
+        SAEnum("balanced", "reconciled", name="snapshot_status"),
+        default="balanced",
     )
     reconciliation_entry_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("journal_entries.id")

@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { StyleSheet, Pressable, ActivityIndicator, Modal, Platform } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useRouter } from 'expo-router';
 import { Text, TextInput, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -328,21 +327,18 @@ export default function BalanceSheetTable({ data, onRefresh, editable }: Props) 
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const { isDesktop, isMobile } = useBreakpoint();
-  const router = useRouter();
 
   // Editing state
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success' | 'warning' | 'error'>('success');
-  const [toastLink, setToastLink] = useState(false);
 
-  const showToast = useCallback((msg: string, type: 'success' | 'warning' | 'error' = 'success', link = false) => {
+  const showToast = useCallback((msg: string, type: 'success' | 'warning' | 'error' = 'success') => {
     setToastMsg(msg);
     setToastType(type);
-    setToastLink(link);
-    const delay = type === 'warning' ? 5000 : type === 'success' ? 1500 : 3000;
-    setTimeout(() => { setToastMsg(''); setToastLink(false); }, delay);
+    const delay = type === 'success' ? 1500 : 3000;
+    setTimeout(() => { setToastMsg(''); }, delay);
   }, []);
 
   // Find the editing account node from all sections
@@ -371,7 +367,7 @@ export default function BalanceSheetTable({ data, onRefresh, editable }: Props) 
         showToast('余额一致，无需调节', 'success');
       } else {
         const diffStr = Math.abs(res.difference).toFixed(2);
-        showToast(`差异 ¥${diffStr}，已生成调节分录`, 'warning', true);
+        showToast(`已生成调节分录：¥${diffStr}`, 'success');
       }
       onRefresh?.();
     } catch {
@@ -433,11 +429,6 @@ export default function BalanceSheetTable({ data, onRefresh, editable }: Props) 
           <Text style={{ color: toastType === 'success' ? '#059669' : toastType === 'warning' ? '#D97706' : '#DC2626', fontSize: 13, fontWeight: '600', flex: 1 }}>
             {toastType === 'success' ? '✓ ' : toastType === 'warning' ? '⚠ ' : ''}{toastMsg}
           </Text>
-          {toastLink && (
-            <Pressable onPress={() => { setToastMsg(''); router.push('/sync/reconcile' as any); }}>
-              <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '600' }}>前往确认分类 →</Text>
-            </Pressable>
-          )}
         </View>
       ) : null}
 

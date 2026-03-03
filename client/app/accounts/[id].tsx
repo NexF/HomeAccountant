@@ -125,7 +125,7 @@ export default function AccountDetailScreen() {
         showToast('成功', '余额一致，无需调节');
       } else {
         const diffStr = Math.abs(data.difference).toFixed(2);
-        showToast('已生成调节分录', `差异 ¥${diffStr}，已生成待分类调节分录`);
+        showToast('成功', `已生成调节分录：¥${diffStr}`);
       }
     } catch {
       showToast('错误', '提交失败');

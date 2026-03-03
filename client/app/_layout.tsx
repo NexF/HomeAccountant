@@ -135,7 +135,7 @@ function RootLayoutNav() {
             <Stack.Screen name="reports/balance-sheet" options={{ headerShown: false, title: '资产负债表' }} />
             <Stack.Screen name="reports/income-statement" options={{ headerShown: false, title: '损益表' }} />
             <Stack.Screen name="reports/trends" options={{ headerShown: false, title: '趋势分析' }} />
-            <Stack.Screen name="sync/reconcile" options={{ headerShown: false, title: '待处理对账' }} />
+
             <Stack.Screen name="assets/index" options={{ headerShown: false, title: '固定资产' }} />
             <Stack.Screen name="assets/[id]" options={{ headerShown: false, title: '资产详情' }} />
             <Stack.Screen name="assets/new" options={{ headerShown: false, title: '新建固定资产' }} />

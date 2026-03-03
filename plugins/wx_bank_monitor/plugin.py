@@ -80,6 +80,14 @@ CONFIG_SCHEMA = {
             "description": "收入时的默认收入科目",
         },
         {
+            "key": "adjust_account_id",
+            "label": "调账科目",
+            "type": "account_select",
+            "required": False,
+            "depends_on": "target_book",
+            "description": "余额差异时使用的调账科目（留空则自动创建）",
+        },
+        {
             "key": "sync_balance",
             "label": "同步余额",
             "type": "boolean",
@@ -262,14 +270,18 @@ class HAClient:
         return resp.json()
 
     def submit_balance_snapshot(
-        self, account_id: str, external_balance: float, snapshot_date: str
+        self, account_id: str, external_balance: float, snapshot_date: str,
+        adjust_account_id: str | None = None,
     ) -> dict:
+        body: dict = {
+            "external_balance": external_balance,
+            "snapshot_date": snapshot_date,
+        }
+        if adjust_account_id:
+            body["adjust_account_id"] = adjust_account_id
         resp = self.session.post(
             f"{self.base_url}/accounts/{account_id}/snapshot",
-            json={
-                "external_balance": external_balance,
-                "snapshot_date": snapshot_date,
-            },
+            json=body,
         )
         resp.raise_for_status()
         return resp.json()
@@ -525,10 +537,12 @@ def run_plugin(args):
                     deposit_account_id = _resolve_account(plugin_config, "deposit_account_id", bid)
                     if not deposit_account_id:
                         continue
+                    adjust_id = _resolve_account(plugin_config, "adjust_account_id", bid) if plugin_config.get("adjust_account_id") else None
                     latest_balance, latest_date = tasks[-1]
                     try:
                         snap_result = client.submit_balance_snapshot(
-                            deposit_account_id, latest_balance, latest_date
+                            deposit_account_id, latest_balance, latest_date,
+                            adjust_account_id=adjust_id,
                         )
                         logger.info(
                             "余额快照 [book=%s]: balance=%.2f, status=%s, diff=%s",

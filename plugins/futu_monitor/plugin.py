@@ -71,6 +71,14 @@ CONFIG_SCHEMA = {
             "description": "OpenD 网关监听端口",
         },
         {
+            "key": "adjust_account_id",
+            "label": "调账科目",
+            "type": "account_select",
+            "required": False,
+            "depends_on": "target_book",
+            "description": "余额差异时使用的调账科目（留空则自动创建）",
+        },
+        {
             "key": "sync_time",
             "label": "每日同步时间",
             "type": "string",
@@ -213,14 +221,18 @@ class HAClient:
         resp.raise_for_status()
 
     def submit_balance_snapshot(
-        self, account_id: str, external_balance: float, snapshot_date: str
+        self, account_id: str, external_balance: float, snapshot_date: str,
+        adjust_account_id: str | None = None,
     ) -> dict:
+        body: dict = {
+            "external_balance": external_balance,
+            "snapshot_date": snapshot_date,
+        }
+        if adjust_account_id:
+            body["adjust_account_id"] = adjust_account_id
         resp = self.session.post(
             f"{self.base_url}/accounts/{account_id}/snapshot",
-            json={
-                "external_balance": external_balance,
-                "snapshot_date": snapshot_date,
-            },
+            json=body,
         )
         resp.raise_for_status()
         return resp.json()
@@ -324,15 +336,19 @@ def do_sync(client: HAClient, plugin_config: dict) -> bool:
         book_ids = [target_book]
         account_mapping = {target_book: account_mapping}
 
+    adjust_mapping = plugin_config.get("adjust_account_id")
+
     all_ok = True
     for book_id in book_ids:
         securities_account_id = account_mapping.get(book_id) if isinstance(account_mapping, dict) else account_mapping
         if not securities_account_id:
             logger.warning("账本 %s 缺少科目映射，跳过", book_id)
             continue
+        adjust_id = adjust_mapping.get(book_id) if isinstance(adjust_mapping, dict) else adjust_mapping if adjust_mapping else None
         try:
             snap_result = client.submit_balance_snapshot(
-                securities_account_id, cny_total, snapshot_date
+                securities_account_id, cny_total, snapshot_date,
+                adjust_account_id=adjust_id,
             )
             logger.info(
                 "余额快照提交成功 [book=%s]: balance=%.2f, book_balance=%s, diff=%s, status=%s",

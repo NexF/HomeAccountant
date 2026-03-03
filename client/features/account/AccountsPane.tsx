@@ -232,7 +232,7 @@ function AccountDetailInline({
       if (data.status === 'balanced') {
         showToast('余额一致，无需调节');
       } else {
-        showToast(`差异 ¥${Math.abs(data.difference).toFixed(2)}，已生成待分类调节分录`);
+        showToast(`已生成调节分录：¥${Math.abs(data.difference).toFixed(2)}`);
       }
     } catch {
       showToast('提交失败');

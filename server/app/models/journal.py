@@ -15,7 +15,6 @@ class JournalEntry(Base):
     __table_args__ = (
         Index("ix_journal_entries_book_date", "book_id", "entry_date"),
         Index("ix_journal_entries_book_type", "book_id", "entry_type"),
-        Index("ix_journal_entries_book_reconciliation", "book_id", "reconciliation_status"),
     )
 
     id: Mapped[str] = mapped_column(
@@ -40,10 +39,6 @@ class JournalEntry(Base):
     note: Mapped[str | None] = mapped_column(Text)
     image_urls: Mapped[dict | None] = mapped_column(JSON)
     is_balanced: Mapped[bool] = mapped_column(Boolean, default=True)
-    reconciliation_status: Mapped[str] = mapped_column(
-        SAEnum("none", "pending", "confirmed", name="reconciliation_status"),
-        default="none",
-    )
     source: Mapped[str] = mapped_column(
         SAEnum("manual", "sync", "reconciliation", "import", name="entry_source"),
         default="manual",

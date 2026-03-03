@@ -19,7 +19,7 @@ import {
   type NetWorthTrendPoint,
   type BreakdownItem,
 } from '@/services/reportService';
-import { syncService } from '@/services/syncService';
+
 import NetWorthBadge from '@/features/report/NetWorthBadge';
 import LineChart from '@/features/chart/LineChart';
 import PieChart from '@/features/chart/PieChart';
@@ -62,8 +62,6 @@ export default function DashboardScreen() {
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [trend, setTrend] = useState<NetWorthTrendPoint[]>([]);
   const [expenseBreakdown, setExpenseBreakdown] = useState<BreakdownItem[]>([]);
-  const [pendingCount, setPendingCount] = useState(0);
-
   const fetchData = useCallback(async () => {
     if (!currentBook) return;
     try {
@@ -75,16 +73,14 @@ export default function DashboardScreen() {
       const monthStart = fmt(new Date(y, m, 1));
       const monthEnd = fmt(new Date(y, m + 1, 0));
 
-      const [dashRes, trendRes, expRes, pendingRes] = await Promise.all([
+      const [dashRes, trendRes, expRes] = await Promise.all([
         reportService.getDashboard(currentBook.id),
         reportService.getNetWorthTrend(currentBook.id, 6),
         reportService.getExpenseBreakdown(currentBook.id, monthStart, monthEnd),
-        syncService.getPendingCount(currentBook.id),
       ]);
       setDashboard(dashRes.data);
       setTrend(trendRes.data);
       setExpenseBreakdown(expRes.data);
-      setPendingCount(pendingRes.data.count);
     } catch {
       // ignore
     }
@@ -194,24 +190,6 @@ export default function DashboardScreen() {
     />
   ) : null;
 
-  const pendingSection = pendingCount > 0 ? (
-    <Pressable
-      style={[styles.pendingCard, { backgroundColor: colors.card }]}
-      onPress={() => router.push('/sync/reconcile' as any)}
-    >
-      <View style={styles.pendingLeft}>
-        <FontAwesome name="exchange" size={16} color={Colors.primary} />
-        <Text style={[styles.pendingText, { color: colors.text }]}>待处理对账</Text>
-      </View>
-      <View style={styles.pendingRight}>
-        <View style={styles.pendingBadge}>
-          <Text style={styles.pendingBadgeText}>{pendingCount}</Text>
-        </View>
-        <FontAwesome name="chevron-right" size={12} color={colors.textSecondary} />
-      </View>
-    </Pressable>
-  ) : null;
-
   const budgetSection = (
     <BudgetOverview
       bookId={currentBook?.id}
@@ -264,7 +242,6 @@ export default function DashboardScreen() {
           {surplusCard}
           {trendChart}
           {pieChart}
-          {pendingSection}
           {budgetSection}
           {loanSection}
         </ScrollView>
@@ -300,7 +277,6 @@ export default function DashboardScreen() {
       {surplusCard}
       {trendChart}
       {pieChart}
-      {pendingSection}
       {budgetSection}
       {loanSection}
     </ScrollView>
@@ -393,44 +369,6 @@ const styles = StyleSheet.create({
   },
   desktopRightScrollContent: {
     paddingBottom: 80,
-  },
-  // Pending
-  pendingCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-  },
-  pendingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'transparent',
-  },
-  pendingText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  pendingRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'transparent',
-  },
-  pendingBadge: {
-    backgroundColor: Colors.liability,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  pendingBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
   },
   // Entries section
   sectionTitle: {

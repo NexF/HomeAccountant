@@ -49,6 +49,8 @@ async def submit_snapshot(
             external_balance=Decimal(str(body.external_balance)),
             snapshot_date=body.snapshot_date,
             adjust_account_id=body.adjust_account_id,
+            adjust_income_account_id=body.adjust_income_account_id,
+            adjust_expense_account_id=body.adjust_expense_account_id,
         )
         return SnapshotResponse(**data)
     except ReconciliationError as e:

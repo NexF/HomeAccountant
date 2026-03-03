@@ -6,6 +6,8 @@ class SnapshotCreateRequest(BaseModel):
     external_balance: float
     snapshot_date: date | None = None
     adjust_account_id: str | None = None
+    adjust_income_account_id: str | None = None
+    adjust_expense_account_id: str | None = None
 
 
 class SnapshotResponse(BaseModel):

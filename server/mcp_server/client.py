@@ -72,6 +72,8 @@ class HAClient:
     async def submit_snapshot(
         self, account_id: str, external_balance: float, snapshot_date: str,
         adjust_account_id: str | None = None,
+        adjust_income_account_id: str | None = None,
+        adjust_expense_account_id: str | None = None,
     ) -> dict:
         body: dict = {
             "external_balance": external_balance,
@@ -79,6 +81,10 @@ class HAClient:
         }
         if adjust_account_id:
             body["adjust_account_id"] = adjust_account_id
+        if adjust_income_account_id:
+            body["adjust_income_account_id"] = adjust_income_account_id
+        if adjust_expense_account_id:
+            body["adjust_expense_account_id"] = adjust_expense_account_id
         return await self._request("POST", f"/accounts/{account_id}/snapshot", json=body)
 
     # ─── 管理 ──────────────────────────────

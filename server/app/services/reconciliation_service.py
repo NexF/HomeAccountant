@@ -57,6 +57,8 @@ async def create_snapshot(
     external_balance: Decimal,
     snapshot_date: date | None = None,
     adjust_account_id: str | None = None,
+    adjust_income_account_id: str | None = None,
+    adjust_expense_account_id: str | None = None,
 ) -> dict:
     """
     记录外部余额快照，计算差异，如差异!=0 则自动生成调节分录。
@@ -114,11 +116,16 @@ async def create_snapshot(
 
     # 差异 >= 0.01 → 生成调节分录
     if abs(difference) >= Decimal("0.01"):
-        # 确定调账科目
-        if adjust_account_id:
+        # 确定调账科目：方向专用 > 通用单科目 > 系统默认
+        direction_account_id = (
+            adjust_income_account_id if difference > 0 else adjust_expense_account_id
+        )
+        effective_adjust_id = direction_account_id or adjust_account_id
+
+        if effective_adjust_id:
             adj_result = await db.execute(
                 select(Account).where(
-                    Account.id == adjust_account_id,
+                    Account.id == effective_adjust_id,
                     Account.book_id == book_id,
                     Account.is_active == True,
                 )
